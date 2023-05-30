@@ -20,7 +20,7 @@ class BuyOrdersSink(ExactSink):
             "OrderDate": record.get("transaction_date").strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             "OrderNumber": record.get("id"),
             "Supplier": record.get("supplier_remoteId"),
-            "Warehouse": record.get("Warehouse"),
+            "Warehouse": self.config.get("warehouse_uuid"),
             "PurchaseOrderLines": PurchaseOrderLines
         }
 
