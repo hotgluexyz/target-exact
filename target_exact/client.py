@@ -7,7 +7,7 @@ from target_exact.auth import ExactAuthenticator
 import backoff
 import requests
 from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
-
+import xmltodict
 
 class ExactSink(HotglueSink):
 
@@ -90,3 +90,20 @@ class ExactSink(HotglueSink):
             # This is the format -> "2022-08-15T19:16:35Z"
             return date.strftime("%Y-%m-%dT%H:%M:%SZ")
         return date
+    
+    def validate_response(self, response: requests.Response) -> None:
+        """Validate HTTP response."""
+        if response.status_code in [429] or 500 <= response.status_code < 600:
+            msg = self.response_error_message(response)
+            res_json = xmltodict.parse(response.text)
+            print("ERROR:", res_json["error"]["message"]["#text"])
+            raise RetriableAPIError(msg, response)
+        elif 400 <= response.status_code < 500:
+            try:
+                msg = response.text
+                res_json = xmltodict.parse(response.text)
+                print("ERROR:", res_json["error"]["message"]["#text"])
+            except:
+                msg = self.response_error_message(response)
+            raise FatalAPIError(msg)
+    
