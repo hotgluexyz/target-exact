@@ -50,7 +50,6 @@ class BuyOrdersSink(ExactSink):
                 if record.get("buy_order_remoteId"):
                     pass
                 else:
-                    print("REQUEST - endpoint:", endpoint, "request_body:", record)
                     response = self.request_api(
                         "POST", endpoint=endpoint, request_data=record
                     )
