@@ -22,6 +22,8 @@ class ExactSink(HotglueSink):
         self._target = target
         super().__init__(target, stream_name, schema, key_properties)
 
+    auth_state = {}
+
     @property
     def exact_environment(self) -> str:
         refresh_token = self.config["refresh_token"].split(".")[0]
@@ -41,7 +43,7 @@ class ExactSink(HotglueSink):
     @property
     def authenticator(self):
         return ExactAuthenticator(
-            self._target, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
+            self._target, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
         )
 
     @property
@@ -96,13 +98,13 @@ class ExactSink(HotglueSink):
         if response.status_code in [429] or 500 <= response.status_code < 600:
             msg = self.response_error_message(response)
             res_json = xmltodict.parse(response.text)
-            state = {"response": res_json["error"]["message"]["#text"]}
+            state = {"error_response": res_json["error"]["message"]["#text"]}
             self.update_state(state)
             print("ERROR:", state)
             raise RetriableAPIError(msg, res_json)
         elif 400 <= response.status_code < 500:
             res_json = xmltodict.parse(response.text)
-            state = {"response": res_json["error"]["message"]["#text"]}
+            state = {"error_response": res_json["error"]["message"]["#text"]}
             try:
                 msg = response.text
                 self.update_state(state)
@@ -132,7 +134,9 @@ class ExactSink(HotglueSink):
         try:
             id, success, state_updates = self.upsert_record(record, context)
         except Exception as e:
-            self.logger.exception("Upsert record error")
+            if self.auth_state:
+                self.update_state(self.auth_state)
+                self.logger.exception("Upsert record error")
             raise Exception(e)
 
         if success:

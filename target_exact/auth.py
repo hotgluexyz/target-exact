@@ -14,6 +14,7 @@ class ExactAuthenticator:
     def __init__(
         self,
         target,
+        state,
         auth_endpoint: Optional[str] = None,
     ) -> None:
         """Init authenticator.
@@ -29,6 +30,7 @@ class ExactAuthenticator:
         self._auth_endpoint = auth_endpoint
         self._config_file = target.config_file
         self._target = target
+        self.state = state
 
     @property
     def auth_headers(self) -> dict:
@@ -79,6 +81,7 @@ class ExactAuthenticator:
             token_response.raise_for_status()
             self.logger.info("OAuth authorization attempt was successful.")
         except Exception as ex:
+            self.state.update({"auth_error_response": token_response.json()})
             raise RuntimeError(
                 f"Failed OAuth login, response was '{token_response.json()}'. {ex}"
             )
