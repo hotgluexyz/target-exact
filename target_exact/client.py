@@ -137,7 +137,7 @@ class ExactSink(HotglueSink):
             if self.auth_state:
                 self.update_state(self.auth_state)
                 self.logger.exception("Upsert record error")
-            raise Exception(e)
+                return
 
         if success:
             self.logger.info(f"{self.name} created with id: {id}")
@@ -154,6 +154,6 @@ class ExactSink(HotglueSink):
     
     def request_api(self, http_method, endpoint=None, params={}, request_data=None, headers={}):
         """Request records from REST endpoint(s), returning response records."""
-        print("REQUEST - endpoint:", endpoint, "request_body:", request_data)
+        self.logger.info("REQUEST - endpoint:", endpoint, "request_body:", request_data)
         resp = self._request(http_method, endpoint, params, request_data, headers)
         return resp
