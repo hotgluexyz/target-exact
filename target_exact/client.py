@@ -45,6 +45,25 @@ class ExactSink(HotglueSink):
         return ExactAuthenticator(
             self._target, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
         )
+    
+    @property
+    def default_warehouse_uuid(self) -> str:
+        if self.config.get("default_warehouse_id") and not self.config.get("warehouse_uuid"):
+            default_warehouse_id = self.config.get("default_warehouse_id")
+            url=f"{self.base_url}/inventory/Warehouses"
+            params={"$filter": f"Code eq '{default_warehouse_id}'"}
+            headers=self.authenticator.auth_headers
+            response = requests.request("GET", url=url, params=params,headers=headers)
+            self.validate_response(response)
+            res_json = xmltodict.parse(response.text)
+            try:
+                warehouse_uuid = res_json["feed"]["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+                self._target._config["warehouse_uuid"] = warehouse_uuid
+                with open(self._target.config_file, "w") as outfile:
+                    json.dump(self._target._config, outfile, indent=4)
+                return warehouse_uuid
+            except:
+                self.update_state({"error": "The warehouse code provided does not exist for this tenant"})
 
     @property
     def http_headers(self) -> dict:
@@ -96,20 +115,25 @@ class ExactSink(HotglueSink):
     def validate_response(self, response: requests.Response) -> None:
         """Validate HTTP response."""
         if response.status_code in [429] or 500 <= response.status_code < 600:
-            msg = self.response_error_message(response)
-            res_json = xmltodict.parse(response.text)
-            state = {"error_response": res_json["error"]["message"]["#text"]}
-            self.update_state(state)
-            print("ERROR:", state)
+            try:
+                msg = self.response_error_message(response)
+                res_json = xmltodict.parse(response.text)
+                state = {"error_response": res_json["error"]["message"]["#text"]}
+                self.update_state(state)
+                self.logger.info("ERROR:", state)
+            except:
+                self.update_state({"error_response": response.json()})
+                msg = self.response_error_message(response)
             raise RetriableAPIError(msg, res_json)
         elif 400 <= response.status_code < 500:
-            res_json = xmltodict.parse(response.text)
-            state = {"error_response": res_json["error"]["message"]["#text"]}
             try:
+                res_json = xmltodict.parse(response.text)
+                state = {"error_response": res_json["error"]["message"]["#text"]}
                 msg = response.text
                 self.update_state(state)
-                print("ERROR:", state)
+                self.logger.info("ERROR:", state)
             except:
+                self.update_state({"error_response": response.reason})
                 msg = self.response_error_message(response)
             raise FatalAPIError(msg, res_json)
     
