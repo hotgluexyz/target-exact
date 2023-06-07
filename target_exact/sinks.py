@@ -21,7 +21,6 @@ class BuyOrdersSink(ExactSink):
             "OrderDate": record.get("transaction_date").strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
             "OrderNumber": record.get("id"),
             "Supplier": record.get("supplier_remoteId"),
-            "Warehouse": self.config.get("warehouse_uuid"),
             "PurchaseOrderLines": PurchaseOrderLines
         }
 
@@ -50,6 +49,17 @@ class BuyOrdersSink(ExactSink):
                 if record.get("buy_order_remoteId"):
                     pass
                 else:
+                    warehouse_uuid = self.config.get("warehouse_uuid") 
+                    if warehouse_uuid:
+                        record["Warehouse"] = warehouse_uuid
+                    else:
+                        try:
+                            warehouse_uuid = self.default_warehouse_uuid
+                            record["Warehouse"] = warehouse_uuid
+                        except:
+                            self.update_state({"error": "Warehouse uuid missing in config file"})
+                            raise Exception
+
                     response = self.request_api(
                         "POST", endpoint=endpoint, request_data=record
                     )
