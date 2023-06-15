@@ -7,6 +7,7 @@ import xmltodict
 import json
 from target_exact.constants import countries
 
+
 class BuyOrdersSink(ExactSink):
     """Qls target sink class."""
 
@@ -14,14 +15,15 @@ class BuyOrdersSink(ExactSink):
     endpoint = "/purchaseorder/PurchaseOrders"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        
         PurchaseOrderLines = []
 
         payload = {
-            "OrderDate": record.get("transaction_date").strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "OrderDate": record.get("transaction_date").strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            ),
             "OrderNumber": record.get("id"),
             "Supplier": record.get("supplier_remoteId"),
-            "PurchaseOrderLines": PurchaseOrderLines
+            "PurchaseOrderLines": PurchaseOrderLines,
         }
 
         if "line_items" in record:
@@ -30,9 +32,15 @@ class BuyOrdersSink(ExactSink):
                 line_item = {}
                 line_item["Item"] = item.get("product_remoteId")
                 line_item["QuantityInPurchaseUnits"] = item.get("quantity")
-                receipt_date = record.get("created_at") if record.get("created_at") else record.get("syncedDate") 
+                receipt_date = (
+                    record.get("created_at")
+                    if record.get("created_at")
+                    else record.get("syncedDate")
+                )
                 if receipt_date:
-                    line_item["ReceiptDate"] = receipt_date.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+                    line_item["ReceiptDate"] = receipt_date.strftime(
+                        "%Y-%m-%dT%H:%M:%S.%fZ"
+                    )
 
                 PurchaseOrderLines.append(line_item)
 
@@ -45,42 +53,46 @@ class BuyOrdersSink(ExactSink):
         endpoint = "/purchaseorder/PurchaseOrders"
         state_updates = dict()
         if record:
-            try:
-                if record.get("buy_order_remoteId"):
-                    pass
+            if record.get("buy_order_remoteId"):
+                pass
+            else:
+                warehouse_uuid = self.config.get("warehouse_uuid")
+                if warehouse_uuid:
+                    record["Warehouse"] = warehouse_uuid
                 else:
-                    warehouse_uuid = self.config.get("warehouse_uuid") 
-                    if warehouse_uuid:
+                    try:
+                        warehouse_uuid = self.default_warehouse_uuid
                         record["Warehouse"] = warehouse_uuid
-                    else:
-                        try:
-                            warehouse_uuid = self.default_warehouse_uuid
-                            record["Warehouse"] = warehouse_uuid
-                        except:
-                            self.update_state({"error": "Warehouse uuid missing in config file"})
-                            raise Exception
+                    except Exception as e:
+                        self.update_state(
+                            {"error": "Warehouse uuid missing in config file"}
+                        )
+                        raise e
 
-                    response = self.request_api(
-                        "POST", endpoint=endpoint, request_data=record
-                    )
-                    res_json = xmltodict.parse(response.text)
-                    id = res_json["entry"]["content"]["m:properties"]["d:PurchaseOrderID"]["#text"]
-                    self.logger.info(f"{self.name} created with id: {id}")
-            except:
-                raise KeyError
+                response = self.request_api(
+                    "POST", endpoint=endpoint, request_data=record
+                )
+                self.logger.info(f"response from api: {response.text}")
+                res_json = xmltodict.parse(response.text)
+                id = res_json["entry"]["content"]["m:properties"]["d:PurchaseOrderID"][
+                    "#text"
+                ]
+                self.logger.info(f"{self.name} created with id: {id}")
+
             return id, True, state_updates
 
-class UpdateInventory(ExactSink):
 
+class UpdateInventory(ExactSink):
     endpoint = "update_inventory"
     name = "UpdateInventory"
     endpoint = "UpdateInventory"
 
     def preprocess_record(self, record: dict, context: dict) -> None:
         pass
-    
+
     def upsert_record(self, record: dict, context: dict) -> None:
         pass
+
 
 class SuppliersSink(ExactSink):
     """Qls target sink class."""
@@ -89,10 +101,9 @@ class SuppliersSink(ExactSink):
     endpoint = "/crm/Accounts"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        
         payload = {
             "Name": record.get("vendorName"),
-            "CodeAtSupplier": record.get("vendorNumber")
+            "CodeAtSupplier": record.get("vendorNumber"),
         }
 
         phones = record.get("phoneNumbers")
@@ -117,7 +128,7 @@ class SuppliersSink(ExactSink):
                         payload["Country"] = country
                     elif country in countries.keys():
                         payload["Country"] = countries[country]
-        
+
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
@@ -136,6 +147,7 @@ class SuppliersSink(ExactSink):
                 raise KeyError
             return id, True, state_updates
 
+
 class ItemsSink(ExactSink):
     """Qls target sink class."""
 
@@ -143,14 +155,13 @@ class ItemsSink(ExactSink):
     endpoint = "/logistics/Items"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        
         payload = {
             "Description": record.get("name"),
             "ExtraDescription": record.get("description"),
             "Code": record.get("sku"),
             "AverageCost": record.get("cost"),
         }
-        
+
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
@@ -169,6 +180,7 @@ class ItemsSink(ExactSink):
                 raise KeyError
             return id, True, state_updates
 
+
 class PurchaseInvoicesSink(ExactSink):
     """Qls target sink class."""
 
@@ -176,20 +188,19 @@ class PurchaseInvoicesSink(ExactSink):
     endpoint = "/purchase/PurchaseInvoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        
         payload = {
             "Currency": record.get("currency"),
             "DueDate": record.get("dueDate"),
             "YourRef": record.get("invoiceNumber"),
             "createdAt": record.get("InvoiceDate"),
             "Type": 8033,
-            "Journal": "95"
+            "Journal": "95",
         }
 
-        supplier_endpoint = f"/crm/Accounts?$filter=Name eq '{record.get('supplierName')}'"
-        supplier = self.request_api(
-                    "GET", endpoint=supplier_endpoint
-                )
+        supplier_endpoint = (
+            f"/crm/Accounts?$filter=Name eq '{record.get('supplierName')}'"
+        )
+        supplier = self.request_api("GET", endpoint=supplier_endpoint)
         supplier_json = xmltodict.parse(supplier.text)
         suppliers = supplier_json["feed"].get("entry")
         if suppliers and len(suppliers):
@@ -219,9 +230,7 @@ class PurchaseInvoicesSink(ExactSink):
                     }
 
                     product_endpoint = f"/logistics/Items?$filter=Description eq '{line.get('productName')}'"
-                    product = self.request_api(
-                                "GET", endpoint=product_endpoint
-                            )
+                    product = self.request_api("GET", endpoint=product_endpoint)
                     product_json = xmltodict.parse(product.text)
                     products = product_json["feed"].get("entry")
                     if products and len(products):
@@ -235,7 +244,7 @@ class PurchaseInvoicesSink(ExactSink):
                         pass
 
             payload["PurchaseInvoiceLines"] = invoice_lines
-        
+
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
