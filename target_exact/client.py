@@ -124,7 +124,7 @@ class ExactSink(HotglueSink):
             except:
                 self.update_state({"error_response": response.json()})
                 msg = self.response_error_message(response)
-            raise RetriableAPIError(msg, res_json)
+            raise RetriableAPIError(msg)
         elif 400 <= response.status_code < 500:
             try:
                 res_json = xmltodict.parse(response.text)
@@ -135,7 +135,7 @@ class ExactSink(HotglueSink):
             except:
                 self.update_state({"error_response": response.reason})
                 msg = self.response_error_message(response)
-            raise FatalAPIError(msg, res_json)
+            raise FatalAPIError(msg)
     
     def process_record(self, record: dict, context: dict) -> None:
         """Process the record."""
