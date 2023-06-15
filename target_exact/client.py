@@ -43,7 +43,7 @@ class ExactSink(HotglueSink):
     @property
     def authenticator(self):
         return ExactAuthenticator(
-            self._target, self.config, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
+            self._target, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
         )
     
     @property
@@ -158,9 +158,10 @@ class ExactSink(HotglueSink):
         try:
             id, success, state_updates = self.upsert_record(record, context)
         except Exception as e:
+            self.logger.exception("Upsert record error")
+
             if self.auth_state:
                 self.update_state(self.auth_state)
-                self.logger.exception("Upsert record error")
                 return
 
         if success:

@@ -14,7 +14,6 @@ class ExactAuthenticator:
     def __init__(
         self,
         target,
-        config,
         state,
         auth_endpoint: Optional[str] = None,
     ) -> None:
@@ -24,7 +23,7 @@ class ExactAuthenticator:
             stream: A stream for a RESTful endpoint.
         """
         self.target_name: str = target.name
-        self._config: Dict[str, Any] = config
+        self._config: Dict[str, Any] = target._config
         self._auth_headers: Dict[str, Any] = {}
         self._auth_params: Dict[str, Any] = {}
         self.logger: logging.Logger = target.logger
