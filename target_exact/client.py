@@ -43,7 +43,7 @@ class ExactSink(HotglueSink):
     @property
     def authenticator(self):
         return ExactAuthenticator(
-            self._target, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
+            self._target, self.config, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
         )
     
     @property
@@ -120,7 +120,7 @@ class ExactSink(HotglueSink):
                 res_json = xmltodict.parse(response.text)
                 state = {"error_response": res_json["error"]["message"]["#text"]}
                 self.update_state(state)
-                self.logger.info("ERROR:", state)
+                self.logger.error(state)
             except:
                 self.update_state({"error_response": response.json()})
                 msg = self.response_error_message(response)
@@ -131,7 +131,7 @@ class ExactSink(HotglueSink):
                 state = {"error_response": res_json["error"]["message"]["#text"]}
                 msg = response.text
                 self.update_state(state)
-                self.logger.info("ERROR:", state)
+                self.logger.error(state)
             except:
                 self.update_state({"error_response": response.reason})
                 msg = self.response_error_message(response)
