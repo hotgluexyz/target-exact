@@ -54,7 +54,8 @@ class BuyOrdersSink(ExactSink):
         state_updates = dict()
         if record:
             if record.get("buy_order_remoteId"):
-                pass
+                # TODO: Why is this block even here??
+                id = record.get("buy_order_remoteId")
             else:
                 warehouse_uuid = self.config.get("warehouse_uuid")
                 if warehouse_uuid:
@@ -79,6 +80,7 @@ class BuyOrdersSink(ExactSink):
                 ]
                 self.logger.info(f"{self.name} created with id: {id}")
 
+            self.logger.info(f"Returning {id}, True, {state_updates}")
             return id, True, state_updates
 
 

@@ -178,6 +178,6 @@ class ExactSink(HotglueSink):
     
     def request_api(self, http_method, endpoint=None, params={}, request_data=None, headers={}):
         """Request records from REST endpoint(s), returning response records."""
-        self.logger.info("REQUEST - endpoint:", endpoint, "request_body:", request_data)
+        self.logger.info(f"REQUEST - endpoint: {endpoint}, request_body: {request_data}")
         resp = self._request(http_method, endpoint, params, request_data, headers)
         return resp
