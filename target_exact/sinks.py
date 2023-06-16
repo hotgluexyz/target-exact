@@ -24,6 +24,7 @@ class BuyOrdersSink(ExactSink):
             "OrderNumber": record.get("id"),
             "Supplier": record.get("supplier_remoteId"),
             "PurchaseOrderLines": PurchaseOrderLines,
+            "buy_order_remoteId": record.get("remoteId")
         }
 
         if "line_items" in record:
