@@ -58,6 +58,7 @@ class BuyOrdersSink(ExactSink):
                 # TODO: Why is this block even here??
                 id = record.get("buy_order_remoteId")
             else:
+                del record['buy_order_remoteId']
                 warehouse_uuid = self.config.get("warehouse_uuid")
                 if warehouse_uuid:
                     record["Warehouse"] = warehouse_uuid
