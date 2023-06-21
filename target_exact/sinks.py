@@ -95,7 +95,10 @@ class UpdateInventory(ExactSink):
         pass
 
     def upsert_record(self, record: dict, context: dict) -> None:
-        pass
+        state_updates = dict()
+        id = ""
+        return id, True, state_updates
+
 
 
 class SuppliersSink(ExactSink):
