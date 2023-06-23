@@ -6,7 +6,7 @@ import ast
 import xmltodict
 import json
 from target_exact.constants import countries
-
+import datetime
 
 class BuyOrdersSink(ExactSink):
     """Qls target sink class."""
@@ -17,6 +17,14 @@ class BuyOrdersSink(ExactSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         PurchaseOrderLines = []
 
+        receipt_date = (
+            record.get("created_at")
+            if record.get("created_at")
+            else datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            )
+        )
+
         payload = {
             "OrderDate": record.get("transaction_date").strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -24,8 +32,14 @@ class BuyOrdersSink(ExactSink):
             "OrderNumber": record.get("id"),
             "Supplier": record.get("supplier_remoteId"),
             "PurchaseOrderLines": PurchaseOrderLines,
-            "buy_order_remoteId": record.get("remoteId")
+            "buy_order_remoteId": record.get("remoteId"),
         }
+
+        if receipt_date:
+            receipt_date = receipt_date.strftime(
+                            "%Y-%m-%dT%H:%M:%S.%fZ"
+                        )
+            payload["ReceiptDate"] = receipt_date
 
         if "line_items" in record:
             record["line_items"] = ast.literal_eval(record["line_items"])
@@ -33,15 +47,8 @@ class BuyOrdersSink(ExactSink):
                 line_item = {}
                 line_item["Item"] = item.get("product_remoteId")
                 line_item["QuantityInPurchaseUnits"] = item.get("quantity")
-                receipt_date = (
-                    record.get("created_at")
-                    if record.get("created_at")
-                    else record.get("syncedDate")
-                )
                 if receipt_date:
-                    line_item["ReceiptDate"] = receipt_date.strftime(
-                        "%Y-%m-%dT%H:%M:%S.%fZ"
-                    )
+                    line_item["ReceiptDate"] = receipt_date
 
                 PurchaseOrderLines.append(line_item)
 
@@ -96,7 +103,7 @@ class UpdateInventory(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         state_updates = dict()
-        id = ""
+        id = "id"
         return id, True, state_updates
 
 
