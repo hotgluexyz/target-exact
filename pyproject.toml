@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "target-exact"
-version = "0.0.1"
+version = "0.0.2"
 description = "`target-exact` is a Singer target for Exact, built with the Meltano SDK for Singer Targets."
 authors = ["Hotglue"]
 keywords = [
