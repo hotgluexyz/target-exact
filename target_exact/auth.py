@@ -46,8 +46,8 @@ class ExactAuthenticator:
         return {
             "refresh_token": self._config["refresh_token"],
             "grant_type": "refresh_token",
-            "client_id": self._config["client_id"],
-            "client_secret": self._config["client_secret"],
+            "client_id": str(self._config["client_id"]),
+            "client_secret": str(self._config["client_secret"]),
         }
 
     def is_token_valid(self) -> bool:

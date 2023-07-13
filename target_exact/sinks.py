@@ -162,7 +162,7 @@ class SuppliersSink(ExactSink):
             return id, True, state_updates
 
 
-class ItemsSink(ExactSink):
+class ProductsSink(ExactSink):
     """Qls target sink class."""
 
     name = "products"
@@ -172,7 +172,7 @@ class ItemsSink(ExactSink):
         payload = {
             "Description": record.get("name"),
             "ExtraDescription": record.get("description"),
-            "Code": record.get("sku"),
+            "Code": record.get("sku",record.get("code")),
             "AverageCost": record.get("cost"),
         }
 
@@ -194,23 +194,39 @@ class ItemsSink(ExactSink):
                 raise KeyError
             return id, True, state_updates
 
-
+class ItemsSink(ProductsSink):
+    name = "Items"
 class PurchaseInvoicesSink(ExactSink):
     """Qls target sink class."""
 
     name = "PurchaseInvoices"
     endpoint = "/purchase/PurchaseInvoices"
-
+    def get_journal_code(self):
+        code = None
+        endpoint = (
+            f"/financial/Journals?$filter=Description eq 'Purchase journal'"
+        )
+        response = self.request_api("GET", endpoint=endpoint)
+        detail = xmltodict.parse(response.text)
+        journals = detail["feed"].get("entry")
+        if type(journals) is dict:
+                code = journals["content"]["m:properties"]["d:Code"]
+        else:
+            code = journals[0]["content"]["m:properties"]["d:Code"]
+        return code
     def preprocess_record(self, record: dict, context: dict) -> dict:
         payload = {
             "Currency": record.get("currency"),
             "DueDate": record.get("dueDate"),
             "YourRef": record.get("invoiceNumber"),
-            "createdAt": record.get("InvoiceDate"),
+            # "createdAt": record.get("InvoiceDate"),
+            "Description": record.get("description"),
             "Type": 8033,
-            "Journal": "95",
+            "Journal": "70",
         }
-
+        journal_code = self.get_journal_code()
+        if journal_code:
+            payload.update({"Journal":journal_code})
         supplier_endpoint = (
             f"/crm/Accounts?$filter=Name eq '{record.get('supplierName')}'"
         )
@@ -266,13 +282,20 @@ class PurchaseInvoicesSink(ExactSink):
         endpoint = "/purchase/PurchaseInvoices"
         state_updates = dict()
         if record:
-            try:
-                response = self.request_api(
-                    "POST", endpoint=endpoint, request_data=record
-                )
-                res_json = xmltodict.parse(response.text)
+            response = self.request_api(
+                "POST", endpoint=endpoint, request_data=record
+            )
+            if response.status_code in [200,201]:
+                state_updates["success"] = True
+            res_json = xmltodict.parse(response.text)
+            if "error" in res_json:
+                id = None
+                message = res_json["error"]["message"]["#text"]
+                state_updates['error_response'] = message
+                state_updates["success"] = False
+                return None,False,state_updates
+            if "entry" in res_json:
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
                 self.logger.info(f"{self.name} created with id: {id}")
-            except:
-                raise KeyError
-            return id, True, state_updates
+                return id, True, state_updates
+            return None, False, state_updates

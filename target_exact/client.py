@@ -122,9 +122,9 @@ class ExactSink(HotglueSink):
                 self.update_state(state)
                 self.logger.error(state)
             except:
-                self.update_state({"error_response": response.json()})
-                msg = self.response_error_message(response)
-            raise RetriableAPIError(msg)
+                res_json = xmltodict.parse(response.text)
+                msg = response.text
+                raise FatalAPIError(msg)
         elif 400 <= response.status_code < 500:
             try:
                 res_json = xmltodict.parse(response.text)
