@@ -35,9 +35,14 @@ class ExactSink(HotglueSink):
             return "nl"
 
     @property
+    def current_division(self):
+        return self.config.get("current_division")
+
+    @property
     def base_url(self) -> str:
-        current_division = self.config.get("current_division")
-        base_url = f"https://start.exactonline.{self.exact_environment}/api/v1/{current_division}"
+        base_url = f"https://start.exactonline.{self.exact_environment}/api/v1/"
+        if self.current_division:
+            return f"{base_url}/{self.current_division}"
         return base_url
     
     @property

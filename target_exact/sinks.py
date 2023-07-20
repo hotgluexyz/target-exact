@@ -115,6 +115,9 @@ class SuppliersSink(ExactSink):
     endpoint = "/crm/Accounts"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
         payload = {
             "Name": record.get("vendorName"),
             "CodeAtSupplier": record.get("vendorNumber"),
@@ -147,12 +150,11 @@ class SuppliersSink(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
-        endpoint = "/crm/Accounts"
         state_updates = dict()
         if record:
             try:
                 response = self.request_api(
-                    "POST", endpoint=endpoint, request_data=record
+                    "POST", endpoint=self.endpoint, request_data=record
                 )
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
@@ -169,6 +171,10 @@ class ItemsSink(ExactSink):
     endpoint = "/logistics/Items"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
         payload = {
             "Description": record.get("name"),
             "ExtraDescription": record.get("description"),
@@ -180,12 +186,11 @@ class ItemsSink(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
-        endpoint = "/logistics/Items"
         state_updates = dict()
         if record:
             try:
                 response = self.request_api(
-                    "POST", endpoint=endpoint, request_data=record
+                    "POST", endpoint=self.endpoint, request_data=record
                 )
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
@@ -202,11 +207,15 @@ class PurchaseInvoicesSink(ExactSink):
     endpoint = "/purchase/PurchaseInvoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
         payload = {
             "Currency": record.get("currency"),
             "DueDate": record.get("dueDate"),
             "YourRef": record.get("invoiceNumber"),
-            "createdAt": record.get("InvoiceDate"),
+            "InvoiceDate": record.get("createdAt"),
             "Type": 8033,
             "Journal": "95",
         }
@@ -263,12 +272,11 @@ class PurchaseInvoicesSink(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
-        endpoint = "/purchase/PurchaseInvoices"
         state_updates = dict()
         if record:
             try:
                 response = self.request_api(
-                    "POST", endpoint=endpoint, request_data=record
+                    "POST", endpoint=self.endpoint, request_data=record
                 )
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
