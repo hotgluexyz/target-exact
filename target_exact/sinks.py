@@ -118,6 +118,7 @@ class SuppliersSink(ExactSink):
         payload = {
             "Name": record.get("vendorName"),
             "CodeAtSupplier": record.get("vendorNumber"),
+            "IsSupplier": True,
         }
 
         phones = record.get("phoneNumbers")
@@ -174,6 +175,8 @@ class ProductsSink(ExactSink):
             "ExtraDescription": record.get("description"),
             "Code": record.get("sku",record.get("code")),
             "AverageCost": record.get("cost"),
+            "IsSalesItem": True,# Indicate if the item is a sales item
+            "IsPurchaseItem": True,# Indicate if the item is a purchase item
         }
 
         return payload
@@ -218,12 +221,20 @@ class PurchaseInvoicesSink(ExactSink):
         payload = {
             "Currency": record.get("currency"),
             "DueDate": record.get("dueDate"),
-            "YourRef": record.get("invoiceNumber"),
             # "createdAt": record.get("InvoiceDate"),
             "Description": record.get("description"),
             "Type": 8033,
             "Journal": "70",
         }
+        purchase_id = record.get("purchaseNumber")
+        if purchase_id: 
+            purchase_id = int(purchase_id)
+                
+        if purchase_id and record.get("invoiceNumber"):
+            payload.update({"YourRef": f"{purchase_id}-{record.get('invoiceNumber')}"})
+        else:
+            payload.update({"YourRef": record.get("invoiceNumber")})
+        
         journal_code = self.get_journal_code()
         if journal_code:
             payload.update({"Journal":journal_code})
@@ -254,10 +265,14 @@ class PurchaseInvoicesSink(ExactSink):
                     invoice_line = {
                         "UnitPrice": line.get("unitPrice"),
                         "Quantity": line.get("quantity"),
-                        "VATCode": line.get("taxCode"),
-                        "VATAmount": line.get("taxAmount"),
                         "Amount": line.get("totalPrice"),
                     }
+                    if line.get("taxCode"):
+                        invoice_line.update({"VATCode": line.get("taxCode")})
+
+                    if line.get("taxAmount"):
+                        invoice_line.update({"VATAmount": line.get("taxAmount")})    
+
 
                     product_endpoint = f"/logistics/Items?$filter=Description eq '{line.get('productName')}'"
                     product = self.request_api("GET", endpoint=product_endpoint)
