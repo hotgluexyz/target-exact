@@ -8,6 +8,7 @@ import backoff
 import requests
 from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 import xmltodict
+import re
 
 class ExactSink(HotglueSink):
 
@@ -25,30 +26,23 @@ class ExactSink(HotglueSink):
     auth_state = {}
 
     @property
-    def exact_environment(self) -> str:
-        refresh_token = self.config["refresh_token"].split(".")[0]
-        if "US" in refresh_token:
-            return "com"
-        elif "UK" in refresh_token:
-            return "co.uk"
-        else:
-            return "nl"
-
-    @property
     def current_division(self):
         return self.config.get("current_division")
 
     @property
     def base_url(self) -> str:
-        base_url = f"https://start.exactonline.{self.exact_environment}/api/v1/"
+        url = self.config.get("auth_url", "https://start.exactonline.nl/api/oauth2/token")
+        url = re.findall("(.*)/oauth2",url)[0]
+        base_url = f"{url}/v1/"
         if self.current_division:
             return f"{base_url}/{self.current_division}"
         return base_url
     
     @property
     def authenticator(self):
+        url = self.config.get("auth_url")
         return ExactAuthenticator(
-            self._target, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
+            self._target, self.auth_state, url
         )
     
     @property
