@@ -118,10 +118,8 @@ class ExactSink(HotglueSink):
                 msg = self.response_error_message(response)
                 res_json = xmltodict.parse(response.text)
                 state = {"error_response": res_json["error"]["message"]["#text"]}
-                self.update_state(state)
                 self.logger.error(state)
             except:
-                self.update_state({"error_response": response.json()})
                 msg = self.response_error_message(response)
             raise RetriableAPIError(msg)
         elif 400 <= response.status_code < 500:
@@ -129,10 +127,8 @@ class ExactSink(HotglueSink):
                 res_json = xmltodict.parse(response.text)
                 state = {"error_response": res_json["error"]["message"]["#text"]}
                 msg = response.text
-                self.update_state(state)
                 self.logger.error(state)
             except:
-                self.update_state({"error_response": response.reason})
                 msg = self.response_error_message(response)
             raise FatalAPIError(msg)
     
@@ -162,6 +158,7 @@ class ExactSink(HotglueSink):
             if self.auth_state:
                 self.update_state(self.auth_state)
                 return
+            state_updates['error'] = str(e)
 
         if success:
             self.logger.info(f"{self.name} created with id: {id}")

@@ -78,7 +78,6 @@ class BuyOrdersSink(ExactSink):
                             {"error": "Warehouse uuid missing in config file"}
                         )
                         raise e
-
                 response = self.request_api(
                     "POST", endpoint=endpoint, request_data=record
                 )
