@@ -46,7 +46,7 @@ class BuyOrdersSink(ExactSink):
             for item in record["line_items"]:
                 line_item = {}
                 line_item["Item"] = item.get("product_remoteId")
-                line_item["QuantityInPurchaseUnits"] = item.get("quantity")
+                line_item["QuantityInPurchaseUnits"] = item.get("quantity") / item.get("lot_size", 1)
                 if receipt_date:
                     line_item["ReceiptDate"] = receipt_date
 
