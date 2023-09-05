@@ -42,10 +42,12 @@ class BuyOrdersSink(ExactSink):
             payload["ReceiptDate"] = receipt_date
 
         if "line_items" in record:
-            record["line_items"] = ast.literal_eval(record["line_items"])
+            record["line_items"] = json.loads(record["line_items"])
             for item in record["line_items"]:
                 line_item = {}
                 line_item["Item"] = item.get("product_remoteId")
+                if not item.get("lot_size") or item.get("lot_size") == False:
+                    item["lot_size"] = 1
                 line_item["QuantityInPurchaseUnits"] = item.get("quantity") / item.get("lot_size", 1)
                 if receipt_date:
                     line_item["ReceiptDate"] = receipt_date
@@ -124,14 +126,14 @@ class SuppliersSink(ExactSink):
 
         phones = record.get("phoneNumbers")
         if phones and isinstance(phones, str):
-            phones = ast.literal_eval(phones)
+            phones = ast.literal_eval(phones) #TODO: Change this to json.loads
             if len(phones):
                 payload["Phone"] = phones[0]["number"]
 
         record_address = record.get("addresses")
         if record_address and isinstance(record_address, str):
             record_address = record_address.replace("null", '""')
-            record_address = ast.literal_eval(record_address)
+            record_address = ast.literal_eval(record_address) # TODO: Change this to json.loads
             if len(record_address):
                 record_address = record_address[0]
                 payload["AddressLine1"] = record_address.get("line1")
@@ -240,7 +242,7 @@ class PurchaseInvoicesSink(ExactSink):
             lines = lines.replace("null", '""')
             lines = lines.replace("false", "False")
             lines = lines.replace("true", "True")
-            lines = ast.literal_eval(lines)
+            lines = ast.literal_eval(lines) # TODO: Change to json.loads
             if len(lines):
                 for line in lines:
                     invoice_line = {
