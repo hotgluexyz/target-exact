@@ -8,6 +8,7 @@ import backoff
 import requests
 from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 import xmltodict
+import re
 
 class ExactSink(HotglueSink):
 
@@ -25,25 +26,23 @@ class ExactSink(HotglueSink):
     auth_state = {}
 
     @property
-    def exact_environment(self) -> str:
-        refresh_token = self.config["refresh_token"].split(".")[0]
-        if "NL" in refresh_token:
-            return "nl"
-        elif "UK" in refresh_token:
-            return "co.uk"
-        else:
-            return "com"
+    def current_division(self):
+        return self.config.get("current_division")
 
     @property
     def base_url(self) -> str:
-        current_division = self.config.get("current_division")
-        base_url = f"https://start.exactonline.{self.exact_environment}/api/v1/{current_division}"
+        url = self.config.get("auth_url", "https://start.exactonline.nl/api/oauth2/token")
+        url = re.findall("(.*)/oauth2",url)[0]
+        base_url = f"{url}/v1/"
+        if self.current_division:
+            return f"{base_url}/{self.current_division}"
         return base_url
     
     @property
     def authenticator(self):
+        url = self.config.get("auth_url", "https://start.exactonline.nl/api/oauth2/token")
         return ExactAuthenticator(
-            self._target, self.auth_state, f"https://start.exactonline.{self.exact_environment}/api/oauth2/token"
+            self._target, self.auth_state, url
         )
     
     @property
@@ -118,22 +117,17 @@ class ExactSink(HotglueSink):
             try:
                 msg = self.response_error_message(response)
                 res_json = xmltodict.parse(response.text)
-                state = {"error_response": res_json["error"]["message"]["#text"]}
-                self.update_state(state)
-                self.logger.error(state)
+                msg = res_json["error"]["message"]["#text"]
+                self.logger.error({"error": msg})
             except:
-                res_json = xmltodict.parse(response.text)
                 msg = response.text
                 raise FatalAPIError(msg)
         elif 400 <= response.status_code < 500:
             try:
                 res_json = xmltodict.parse(response.text)
-                state = {"error_response": res_json["error"]["message"]["#text"]}
-                msg = response.text
-                self.update_state(state)
-                self.logger.error(state)
+                msg = res_json["error"]["message"]["#text"]
+                self.logger.error({"error": msg})
             except:
-                self.update_state({"error_response": response.reason})
                 msg = self.response_error_message(response)
             raise FatalAPIError(msg)
     
@@ -163,6 +157,7 @@ class ExactSink(HotglueSink):
             if self.auth_state:
                 self.update_state(self.auth_state)
                 return
+            state_updates['error'] = str(e)
 
         if success:
             self.logger.info(f"{self.name} created with id: {id}")

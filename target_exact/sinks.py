@@ -42,11 +42,13 @@ class BuyOrdersSink(ExactSink):
             payload["ReceiptDate"] = receipt_date
 
         if "line_items" in record:
-            record["line_items"] = ast.literal_eval(record["line_items"])
+            record["line_items"] = json.loads(record["line_items"])
             for item in record["line_items"]:
                 line_item = {}
                 line_item["Item"] = item.get("product_remoteId")
-                line_item["QuantityInPurchaseUnits"] = item.get("quantity")
+                if not item.get("lot_size") or item.get("lot_size") == False:
+                    item["lot_size"] = 1
+                line_item["QuantityInPurchaseUnits"] = item.get("quantity") / item.get("lot_size", 1)
                 if receipt_date:
                     line_item["ReceiptDate"] = receipt_date
 
@@ -78,7 +80,6 @@ class BuyOrdersSink(ExactSink):
                             {"error": "Warehouse uuid missing in config file"}
                         )
                         raise e
-
                 response = self.request_api(
                     "POST", endpoint=endpoint, request_data=record
                 )
@@ -115,6 +116,9 @@ class SuppliersSink(ExactSink):
     endpoint = "/crm/Accounts"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
         payload = {
             "Name": record.get("vendorName"),
             "CodeAtSupplier": record.get("vendorNumber"),
@@ -123,14 +127,14 @@ class SuppliersSink(ExactSink):
 
         phones = record.get("phoneNumbers")
         if phones and isinstance(phones, str):
-            phones = ast.literal_eval(phones)
+            phones = ast.literal_eval(phones) #TODO: Change this to json.loads
             if len(phones):
                 payload["Phone"] = phones[0]["number"]
 
         record_address = record.get("addresses")
         if record_address and isinstance(record_address, str):
             record_address = record_address.replace("null", '""')
-            record_address = ast.literal_eval(record_address)
+            record_address = ast.literal_eval(record_address) # TODO: Change this to json.loads
             if len(record_address):
                 record_address = record_address[0]
                 payload["AddressLine1"] = record_address.get("line1")
@@ -148,12 +152,11 @@ class SuppliersSink(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
-        endpoint = "/crm/Accounts"
         state_updates = dict()
         if record:
             try:
                 response = self.request_api(
-                    "POST", endpoint=endpoint, request_data=record
+                    "POST", endpoint=self.endpoint, request_data=record
                 )
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
@@ -170,6 +173,10 @@ class ProductsSink(ExactSink):
     endpoint = "/logistics/Items"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
         payload = {
             "Description": record.get("name"),
             "ExtraDescription": record.get("description"),
@@ -183,12 +190,11 @@ class ProductsSink(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
-        endpoint = "/logistics/Items"
         state_updates = dict()
         if record:
             try:
                 response = self.request_api(
-                    "POST", endpoint=endpoint, request_data=record
+                    "POST", endpoint=self.endpoint, request_data=record
                 )
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
@@ -218,13 +224,19 @@ class PurchaseInvoicesSink(ExactSink):
             code = journals[0]["content"]["m:properties"]["d:Code"]
         return code
     def preprocess_record(self, record: dict, context: dict) -> dict:
+
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
         payload = {
             "Currency": record.get("currency"),
             "DueDate": record.get("dueDate"),
             # "createdAt": record.get("InvoiceDate"),
             "Description": record.get("description"),
-            "Type": 8033,
-            "Journal": "70",
+            "YourRef": record.get("invoiceNumber"),
+            "InvoiceDate": record.get("createdAt"),
+            "Type": record.get("type"),
+            "Journal": record.get("journal"),
         }
         purchase_id = record.get("purchaseNumber")
         if purchase_id: 
@@ -259,7 +271,7 @@ class PurchaseInvoicesSink(ExactSink):
             lines = lines.replace("null", '""')
             lines = lines.replace("false", "False")
             lines = lines.replace("true", "True")
-            lines = ast.literal_eval(lines)
+            lines = ast.literal_eval(lines) # TODO: Change to json.loads
             if len(lines):
                 for line in lines:
                     invoice_line = {
@@ -294,23 +306,27 @@ class PurchaseInvoicesSink(ExactSink):
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
-        endpoint = "/purchase/PurchaseInvoices"
         state_updates = dict()
         if record:
             response = self.request_api(
-                "POST", endpoint=endpoint, request_data=record
+                "POST", endpoint=self.endpoint, request_data=record
             )
+
             if response.status_code in [200,201]:
                 state_updates["success"] = True
+
             res_json = xmltodict.parse(response.text)
+
             if "error" in res_json:
                 id = None
                 message = res_json["error"]["message"]["#text"]
                 state_updates['error_response'] = message
                 state_updates["success"] = False
                 return None,False,state_updates
+
             if "entry" in res_json:
                 id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
                 self.logger.info(f"{self.name} created with id: {id}")
                 return id, True, state_updates
+
             return None, False, state_updates
