@@ -217,8 +217,8 @@ class PurchaseInvoicesSink(ExactSink):
             "DueDate": record.get("dueDate"),
             "YourRef": record.get("invoiceNumber"),
             "InvoiceDate": record.get("createdAt"),
-            "Type": 8033,
-            "Journal": "95",
+            "Type": record.get("type"),
+            "Journal": record.get("journal"),
         }
 
         supplier_endpoint = (
