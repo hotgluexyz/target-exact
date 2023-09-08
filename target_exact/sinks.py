@@ -171,7 +171,19 @@ class ProductsSink(ExactSink):
 
     name = "products"
     endpoint = "/logistics/Items"
-
+    def search_product(self,product_code):
+        id = None
+        product_endpoint = f"/logistics/Items?$filter=Code eq '{product_code}'"
+        product = self.request_api("GET", endpoint=product_endpoint)
+        product_json = xmltodict.parse(product.text)
+        products = product_json["feed"].get("entry")
+        if products and len(products):
+            if type(products) is dict:
+                id = products["content"]["m:properties"]["d:ID"]["#text"]
+            else:
+                id = products[0]["content"]["m:properties"]["d:ID"]["#text"]
+            
+        return id
     def preprocess_record(self, record: dict, context: dict) -> dict:
 
         if record.get("division") and not self.current_division:
@@ -185,6 +197,9 @@ class ProductsSink(ExactSink):
             "IsSalesItem": True,# Indicate if the item is a sales item
             "IsPurchaseItem": True,# Indicate if the item is a purchase item
         }
+        product_search = self.search_product(payload['Code'])
+        if product_search:
+            payload.update({"id":product_search})
 
         return payload
 
@@ -192,12 +207,24 @@ class ProductsSink(ExactSink):
         """Process the record."""
         state_updates = dict()
         if record:
+            method_type = "POST"
+            endpoint = self.endpoint
+            if "id" in record:
+                method_type = "PUT"
+                endpoint = f"{endpoint}(guid'{record['id']}')"
+                id = record['id']
+                del record['id']
             try:
                 response = self.request_api(
-                    "POST", endpoint=self.endpoint, request_data=record
+                    method_type, endpoint=endpoint, request_data=record
                 )
-                res_json = xmltodict.parse(response.text)
-                id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+                if response.status_code==204:
+                    state_updates['updated'] = True
+                    state_updates['existing'] = True
+                    state_updates['success'] = True
+                else:    
+                    res_json = xmltodict.parse(response.text)
+                    id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
                 self.logger.info(f"{self.name} created with id: {id}")
             except:
                 raise KeyError
