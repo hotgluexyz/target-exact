@@ -245,11 +245,12 @@ class PurchaseInvoicesSink(ExactSink):
         response = self.request_api("GET", endpoint=endpoint)
         detail = xmltodict.parse(response.text)
         journals = detail["feed"].get("entry")
-        if type(journals) is dict:
-                code = journals["content"]["m:properties"]["d:Code"]
-        else:
-            code = journals[0]["content"]["m:properties"]["d:Code"]
-        return code
+        if journals is not None:
+            if type(journals) is dict:
+                    code = journals["content"]["m:properties"]["d:Code"]
+            else:
+                code = journals[0]["content"]["m:properties"]["d:Code"]
+            return code
     def preprocess_record(self, record: dict, context: dict) -> dict:
 
         if record.get("division") and not self.current_division:
