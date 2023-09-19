@@ -131,47 +131,6 @@ class ExactSink(HotglueSink):
                 msg = self.response_error_message(response)
             raise FatalAPIError(msg)
     
-    def process_record(self, record: dict, context: dict) -> None:
-        """Process the record."""
-        if not self.latest_state:
-            self.init_state()
-
-        hash = self.build_record_hash(record)
-
-        existing_state =  self.get_existing_state(hash)
-
-        if existing_state:
-            return self.update_state(existing_state, is_duplicate=True)
-
-        state = {"hash": hash}
-
-        id = None
-        success = False
-        state_updates = dict()
-
-        try:
-            id, success, state_updates = self.upsert_record(record, context)
-        except Exception as e:
-            self.logger.exception("Upsert record error")
-
-            if self.auth_state:
-                self.update_state(self.auth_state)
-                return
-            state_updates['error'] = str(e)
-
-        if success:
-            self.logger.info(f"{self.name} created with id: {id}")
-
-        state["success"] = success
-
-        if id:
-            state["id"] = id
-
-        if state_updates and isinstance(state_updates, dict):
-            state = dict(state, **state_updates)
-
-        self.update_state(state)
-    
     def request_api(self, http_method, endpoint=None, params={}, request_data=None, headers={}):
         """Request records from REST endpoint(s), returning response records."""
         self.logger.info(f"REQUEST - endpoint: {endpoint}, request_body: {request_data}")
