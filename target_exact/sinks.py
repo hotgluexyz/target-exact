@@ -100,7 +100,7 @@ class UpdateInventory(ExactSink):
     endpoint = "UpdateInventory"
 
     def preprocess_record(self, record: dict, context: dict) -> None:
-        pass
+        return {}
 
     def upsert_record(self, record: dict, context: dict) -> None:
         state_updates = dict()
