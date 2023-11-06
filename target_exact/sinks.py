@@ -153,15 +153,12 @@ class SuppliersSink(ExactSink):
         """Process the record."""
         state_updates = dict()
         if record:
-            try:
-                response = self.request_api(
-                    "POST", endpoint=self.endpoint, request_data=record
-                )
-                res_json = xmltodict.parse(response.text)
-                id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
-                self.logger.info(f"{self.name} created with id: {id}")
-            except:
-                raise KeyError
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
 
 
@@ -189,15 +186,12 @@ class ItemsSink(ExactSink):
         """Process the record."""
         state_updates = dict()
         if record:
-            try:
-                response = self.request_api(
-                    "POST", endpoint=self.endpoint, request_data=record
-                )
-                res_json = xmltodict.parse(response.text)
-                id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
-                self.logger.info(f"{self.name} created with id: {id}")
-            except:
-                raise KeyError
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
 
 
@@ -275,13 +269,66 @@ class PurchaseInvoicesSink(ExactSink):
         """Process the record."""
         state_updates = dict()
         if record:
-            try:
-                response = self.request_api(
-                    "POST", endpoint=self.endpoint, request_data=record
-                )
-                res_json = xmltodict.parse(response.text)
-                id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
-                self.logger.info(f"{self.name} created with id: {id}")
-            except:
-                raise KeyError
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
+            return id, True, state_updates
+
+class PurchaseEntriesSink(ExactSink):
+    """Qls target sink class."""
+
+    name = "PurchaseEntries"
+    endpoint = "/purchaseentry/PurchaseEntries"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
+        payload = {
+            "Currency": record.get("currency"),
+            "YourRef": record.get("id"),
+            "EntryDate": record.get("transactionDate"),
+            "Journal": record.get("journal"),
+        }
+        #get supplier id
+        supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('supplierName')}'"})
+        if supplier_id:
+            payload["Supplier"] = supplier_id
+
+        invoice_lines = []
+        lines = record.get("journalLines")
+        if lines and isinstance(lines, str):
+            lines = self.parse_objs(lines)
+            if len(lines):
+                for line in lines:
+                    #get gl account id
+                    account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{line.get('accountName')}'"})
+                    if not account_id:
+                        self.logger.info("skipping journal entry line due to missing or inexistent account name")
+                        continue
+                    invoice_line = {
+                        "AmountFC": line.get("amount"),
+                        "AmountDC": line.get("amount"),
+                        "GLAccount": account_id
+                    }
+                    invoice_lines.append(invoice_line)
+
+            payload["PurchaseEntryLines"] = invoice_lines
+        payload = self.clean_payload(payload)
+        return payload
+
+    def upsert_record(self, record: dict, context: dict) -> None:
+        """Process the record."""
+        state_updates = dict()
+        if record:
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
