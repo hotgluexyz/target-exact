@@ -371,7 +371,7 @@ class PurchaseEntriesSink(ExactSink):
 
         payload = {
             "Currency": record.get("currency"),
-            "YourRef": record.get("id"),
+            "YourRef": record.get("invoiceNumber"),
             "EntryDate": record.get("transactionDate"),
             "Journal": record.get("journal"),
         }
@@ -394,7 +394,9 @@ class PurchaseEntriesSink(ExactSink):
                     invoice_line = {
                         "AmountFC": line.get("amount"),
                         "AmountDC": line.get("amount"),
-                        "GLAccount": account_id
+                        "GLAccount": account_id,
+                        "Description": line.get("description", line.get("productName")),
+                        "VATCode": line.get("taxCode")
                     }
                     invoice_lines.append(invoice_line)
 
