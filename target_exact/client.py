@@ -180,3 +180,17 @@ class ExactSink(HotglueSink):
         self.logger.info(f"REQUEST - endpoint: {endpoint}, request_body: {request_data}")
         resp = self._request(http_method, endpoint, params, request_data, headers)
         return resp
+
+    def get_id(self, endpoint, filter):
+        res = self.request_api("GET", endpoint=f"{endpoint}", params=filter)
+        res_json = xmltodict.parse(res.text)
+        results = res_json["feed"].get("entry")
+
+        if results and len(results):
+            if type(results) is dict:
+                id = results["content"]["m:properties"]["d:ID"]["#text"]
+            else:
+                id = results[0]["content"]["m:properties"]["d:ID"]["#text"]
+            return id
+        else:
+            return None
