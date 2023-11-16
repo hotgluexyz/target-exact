@@ -149,6 +149,8 @@ class ExactSink(HotglueSink):
         success = False
         state_updates = dict()
 
+        external_id = record.pop("externalId", None)
+        
         try:
             id, success, state_updates = self.upsert_record(record, context)
         except Exception as e:
@@ -160,13 +162,14 @@ class ExactSink(HotglueSink):
             state_updates['error'] = str(e)
 
         if success:
-            self.logger.info(f"{self.name} created with id: {id}")
+            self.logger.info(f"{self.name} processed id: {id}")
 
         state["success"] = success
 
         if id:
             state["id"] = id
-
+        if not success and external_id:
+            state["externalId"] = external_id
         if state_updates and isinstance(state_updates, dict):
             state = dict(state, **state_updates)
 
