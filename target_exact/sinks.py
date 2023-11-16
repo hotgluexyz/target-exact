@@ -391,12 +391,13 @@ class PurchaseEntriesSink(ExactSink):
                     if not account_id:
                         self.logger.info("skipping journal entry line due to missing or inexistent account name")
                         continue
+                    vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
                     invoice_line = {
                         "AmountFC": line.get("amount"),
                         "AmountDC": line.get("amount"),
                         "GLAccount": account_id,
                         "Description": line.get("description", line.get("productName")),
-                        "VATCode": line.get("taxCode")
+                        "VATCode": vat_code
                     }
                     invoice_lines.append(invoice_line)
 
