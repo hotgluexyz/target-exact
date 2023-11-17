@@ -369,8 +369,10 @@ class PurchaseEntriesSink(ExactSink):
         if record.get("division") and not self.current_division:
             self.endpoint = f"{record.get('division')}/{self.endpoint}"
         
-        if record.get("id"):
-            your_ref = f"{record.get('id')} - {record.get('invoiceNumber')}"
+        if record.get("externalId"):
+            your_ref = f"{record.get('externalId')} - {record.get('invoiceNumber')}"
+        else:
+            your_ref = record.get('invoiceNumber')
 
         payload = {
             "Currency": record.get("currency"),
