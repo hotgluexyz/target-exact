@@ -42,6 +42,9 @@ class ExactSink(HotglueSink):
     @property
     def authenticator(self):
         url = self.config.get("auth_url", "https://start.exactonline.nl/api/oauth2/token")
+        if not url.endswith("/token"):
+            url += "/token"
+
         return ExactAuthenticator(
             self._target, self.auth_state, url
         )
