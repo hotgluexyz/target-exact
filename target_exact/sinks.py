@@ -7,6 +7,7 @@ import xmltodict
 import json
 from target_exact.constants import countries
 import datetime
+from pendulum import parse
 
 class BuyOrdersSink(ExactSink):
     """Qls target sink class."""
@@ -369,11 +370,22 @@ class PurchaseEntriesSink(ExactSink):
         if record.get("division") and not self.current_division:
             self.endpoint = f"{record.get('division')}/{self.endpoint}"
 
+        transaction_date = record.get("transactionDate")
+        period = None
+        year = None
+        if transaction_date:
+            transac_date = parse(transaction_date)
+            period = transac_date.month
+            year = transac_date.year
+
         payload = {
             "Currency": record.get("currency"),
             "YourRef": record.get("invoiceNumber"),
-            "EntryDate": record.get("transactionDate"),
+            "EntryDate": transaction_date,
             "Journal": record.get("journal"),
+            "DueDate": record.get("dueDate"),
+            "ReportingPeriod": period,
+            "ReportingYear": year,
         }
         #get supplier id
         supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('supplierName')}'"})
