@@ -430,6 +430,7 @@ class PurchaseEntriesSink(ExactSink):
                 endpoint = f"{self.endpoint}(guid'{id}')"
                 method = "PUT"
                 action = "updated"
+                record.pop("PurchaseEntryLines", None)
             response = self.request_api(
                 method, endpoint=endpoint, request_data=record
             )
