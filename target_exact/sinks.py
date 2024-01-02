@@ -386,6 +386,7 @@ class PurchaseEntriesSink(ExactSink):
             "DueDate": record.get("dueDate"),
             "ReportingPeriod": period,
             "ReportingYear": year,
+            "Id": record.get("id")
         }
         #get supplier id
         supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('supplierName')}'"})
@@ -420,12 +421,21 @@ class PurchaseEntriesSink(ExactSink):
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
+        method = "POST"
+        endpoint = self.endpoint
+        action = "created"
         if record:
+            id = record.pop("Id", None)
+            if id:
+                endpoint = f"{self.endpoint}(guid'{id}')"
+                method = "PUT"
+                action = "updated"
             response = self.request_api(
-                "POST", endpoint=self.endpoint, request_data=record
+                method, endpoint=endpoint, request_data=record
             )
-            res_json = xmltodict.parse(response.text)
-            id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
-            self.logger.info(f"{self.name} created with id: {id}")
+            if response.status_code == 201:
+                res_json = xmltodict.parse(response.text)
+                id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
+            self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
 
