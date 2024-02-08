@@ -299,12 +299,16 @@ class PurchaseEntriesSink(ExactSink):
         document_id = document_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
         return document_id
 
-    def _upload_attachment(self, attachment_name):
+    def _upload_attachment(self, attachment_name, attachment_id=None):
         """
         Checks if the file is a valid PDF file and uploads it to the API
         Gets all the files from the path set in config or the default path
         """
         input_path = self.config.get("input_path",'./')
+
+        # some attachments are exported like {attachment_id}_{attachment_name} due to duplicated names
+        if attachment_id:
+            attachment_name = f"{attachment_id}_{attachment_name}"
 
         if not attachment_name:
             return None
@@ -373,7 +377,7 @@ class PurchaseEntriesSink(ExactSink):
         if record.get("attachments"):
             record["attachments"] = json.loads(record["attachments"])
             if len(record["attachments"]) > 0:
-                payload["Document"] = self._upload_attachment(record["attachments"][0]["name"])
+                payload["Document"] = self._upload_attachment(record["attachments"][0]["name"], record["attachments"][0].get("id"))
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
