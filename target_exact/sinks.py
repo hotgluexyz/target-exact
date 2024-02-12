@@ -396,6 +396,7 @@ class PurchaseEntriesSink(ExactSink):
             self.logger.info(f"Attachment {attachment_name} is not a PDF file")
             return None
 
+        input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
         with open(f"{input_path}{attachment_name}", "rb") as f:
             attachment = f.read()
             attachment = base64.b64encode(attachment)
