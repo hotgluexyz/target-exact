@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 import logging
 import requests
+import backoff
 
 
 class ExactAuthenticator:
@@ -64,6 +65,7 @@ class ExactAuthenticator:
 
         return not ((expires_in - now) < 120)
 
+    @backoff.on_exception(backoff.expo, Exception, max_tries=3)
     def update_access_token(self) -> None:
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         self.logger.info(f"Oauth request - endpoint: {self._auth_endpoint}, body: {self.oauth_request_body}")
@@ -71,11 +73,14 @@ class ExactAuthenticator:
             self._auth_endpoint, data=self.oauth_request_body, headers=headers
         )
 
-        if (
-            token_response.json().get("error_description")
-            == "Rate limit exceeded: access_token not expired"
-        ):
-            return None
+        try:
+            if (
+                token_response.json().get("error_description")
+                == "Rate limit exceeded: access_token not expired"
+            ):
+                return None
+        except Exception as e:
+            raise Exception(f"Failed converting response to a json, OAuth response: {token_response.text}")
 
         try:
             token_response.raise_for_status()

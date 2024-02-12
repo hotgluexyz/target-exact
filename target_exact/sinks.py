@@ -1,13 +1,17 @@
 """Exact target sink class, which handles writing streams."""
 
 
-from target_exact.client import ExactSink
 import ast
+import base64
 import xmltodict
 import json
-from target_exact.constants import countries
 import datetime
 from pendulum import parse
+
+from target_exact.client import ExactSink
+from target_exact.constants import countries
+
+
 
 class BuyOrdersSink(ExactSink):
     """Qls target sink class."""
@@ -101,7 +105,7 @@ class UpdateInventory(ExactSink):
     endpoint = "UpdateInventory"
 
     def preprocess_record(self, record: dict, context: dict) -> None:
-        pass
+        return {}
 
     def upsert_record(self, record: dict, context: dict) -> None:
         state_updates = dict()
@@ -155,15 +159,12 @@ class SuppliersSink(ExactSink):
         """Process the record."""
         state_updates = dict()
         if record:
-            try:
-                response = self.request_api(
-                    "POST", endpoint=self.endpoint, request_data=record
-                )
-                res_json = xmltodict.parse(response.text)
-                id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
-                self.logger.info(f"{self.name} created with id: {id}")
-            except:
-                raise KeyError
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
 
 
@@ -365,6 +366,57 @@ class PurchaseEntriesSink(ExactSink):
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
 
+    def _create_document(self):
+        # Creates a document for the journal entry
+        document_payload = {
+            "Subject": "Journal Entry",
+            "Type": "20",
+        }
+
+        document = self.request_api("POST", endpoint="/documents/Documents", request_data=document_payload)
+        document_json = xmltodict.parse(document.text)
+        document_id = document_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+        return document_id
+
+    def _upload_attachment(self, attachment_name, attachment_id=None):
+        """
+        Checks if the file is a valid PDF file and uploads it to the API
+        Gets all the files from the path set in config or the default path
+        """
+        input_path = self.config.get("input_path",'./')
+
+        # some attachments are exported like {attachment_id}_{attachment_name} due to duplicated names
+        if attachment_id:
+            attachment_name = f"{attachment_id}_{attachment_name}"
+
+        if not attachment_name:
+            return None
+
+        if not attachment_name.endswith(".pdf"):
+            self.logger.info(f"Attachment {attachment_name} is not a PDF file")
+            return None
+
+        with open(f"{input_path}{attachment_name}", "rb") as f:
+            attachment = f.read()
+            attachment = base64.b64encode(attachment)
+
+        new_document_id = self._create_document()
+
+        attachment_payload = {
+            "Attachment": attachment,
+            "FileName": attachment_name,
+            "Document": new_document_id,
+        }
+
+        attachment = self.request_api(
+            "POST", endpoint="/documents/DocumentAttachments",
+            request_data=attachment_payload
+        )
+
+        attachment_json = xmltodict.parse(attachment.text)
+        attachment_id = attachment_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+        return attachment_id
+
     def preprocess_record(self, record: dict, context: dict) -> dict:
 
         if record.get("division") and not self.current_division:
@@ -416,6 +468,10 @@ class PurchaseEntriesSink(ExactSink):
 
             payload["PurchaseEntryLines"] = invoice_lines
         payload = self.clean_payload(payload)
+        if record.get("attachments"):
+            record["attachments"] = json.loads(record["attachments"])
+            if len(record["attachments"]) > 0:
+                payload["Document"] = self._upload_attachment(record["attachments"][0]["name"], record["attachments"][0].get("id"))
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
