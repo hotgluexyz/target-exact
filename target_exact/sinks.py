@@ -416,7 +416,7 @@ class PurchaseEntriesSink(ExactSink):
 
         attachment_json = xmltodict.parse(attachment.text)
         attachment_id = attachment_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
-        return attachment_id
+        return new_document_id
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
 
