@@ -439,6 +439,8 @@ class PurchaseEntriesSink(ExactSink):
             "DueDate": record.get("dueDate"),
             "ReportingPeriod": period,
             "ReportingYear": year,
+            "Description": record.get("description"),
+            "PaymentReference": record.get("paymentReference"),
             "Id": record.get("id")
         }
         #get supplier id
