@@ -126,9 +126,18 @@ class SuppliersSink(ExactSink):
 
         payload = {
             "Name": record.get("vendorName"),
+            "Code": record.get("vendorCode"),
             "CodeAtSupplier": record.get("vendorNumber"),
             "IsSupplier": True,
+            "PurchaseCurrency": record.get("currency"),
+            "VATNumber": record.get("taxPayerNumber"),
+            "PaymentConditionPurchase": record.get("paymentTerm"),
+            "Id": record.get("id")
         }
+
+        bankAccounts = record.get("bankAccounts")
+        if bankAccounts:
+            payload["bankAccounts"] = bankAccounts
 
         phones = record.get("phoneNumbers")
         if phones and isinstance(phones, str):
@@ -158,12 +167,38 @@ class SuppliersSink(ExactSink):
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
+        method = "POST"
+        endpoint = self.endpoint
         if record:
+            bankAccounts = record.pop("bankAccounts", None)
+            # check if there is id to update or create the record
+            id = record.pop("Id", None)
+            if id:
+                endpoint = f"{self.endpoint}(guid'{id}')"
+                method = "PUT"
             response = self.request_api(
-                "POST", endpoint=self.endpoint, request_data=record
+                method, endpoint=endpoint, request_data=record
             )
             res_json = xmltodict.parse(response.text)
             id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            # send bank account data if exists
+            if bankAccounts:
+                for bankAccount in bankAccounts: # how not to send dupplicated bank accounts
+                    bank_account = bankAccount.get("accountNumber")
+                    # check if bankAccount already exists
+                    bank_accounts_endpoint = f"/crm/BankAccounts?$filter=BankAccount eq '{bank_account}' and Account eq '{id}'"
+                    bank_acct = self.request_api("GET", endpoint=bank_accounts_endpoint)
+
+                    if not bank_acct:
+                        ba_payload = {
+                            "BankAccount": bankAccount.get("accountNumber"),
+                            "BankAccountHolderName": bankAccount.get("holderName"),
+                            "BICCode": bankAccount.get("swiftCode")
+                        }
+                        response = self.request_api(
+                            "POST", endpoint="/crm/BankAccounts", request_data=ba_payload
+                        )
+            res_json = xmltodict.parse(response.text)
             self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
 
@@ -433,6 +468,7 @@ class PurchaseEntriesSink(ExactSink):
 
         payload = {
             "Currency": record.get("currency"),
+            "InvoiceNumber": record.get("number"),
             "YourRef": record.get("invoiceNumber"),
             "EntryDate": transaction_date,
             "Journal": record.get("journal"),
@@ -460,12 +496,16 @@ class PurchaseEntriesSink(ExactSink):
                         self.logger.info("skipping journal entry line due to missing or inexistent account name")
                         continue
                     vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
+                    project_id = self.get_id("/project/Projects", {"$filter": f"Description eq '{line.get('projectName')}'"})
                     invoice_line = {
                         "AmountFC": line.get("amount"),
                         "AmountDC": line.get("amount"),
                         "GLAccount": account_id,
                         "Description": line.get("description", line.get("productName")),
-                        "VATCode": vat_code
+                        "VATCode": vat_code,
+                        "CostCenter": line.get("costCenter"),
+                        "CostUnit": line.get("costUnit"),
+                        "Project": project_id,  
                     }
                     invoice_lines.append(invoice_line)
 
@@ -480,10 +520,10 @@ class PurchaseEntriesSink(ExactSink):
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
-        method = "POST"
         endpoint = self.endpoint
         action = "created"
         if record:
+            # check if there is id to update or create the record
             id = record.pop("Id", None)
             if id:
                 endpoint = f"{self.endpoint}(guid'{id}')"
