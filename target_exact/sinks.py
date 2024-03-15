@@ -496,7 +496,6 @@ class PurchaseEntriesSink(ExactSink):
                         self.logger.info("skipping journal entry line due to missing or inexistent account name")
                         continue
                     vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
-                    project_id = self.get_id("/project/Projects", {"$filter": f"Description eq '{line.get('projectName')}'"})
                     invoice_line = {
                         "AmountFC": line.get("amount"),
                         "AmountDC": line.get("amount"),
@@ -505,8 +504,13 @@ class PurchaseEntriesSink(ExactSink):
                         "VATCode": vat_code,
                         "CostCenter": line.get("costCenter"),
                         "CostUnit": line.get("costUnit"),
-                        "Project": project_id,  
                     }
+
+                    # optional fields
+                    if line.get('projectName'):
+                        project_id = self.get_id("/project/Projects", {"$filter": f"Description eq '{line.get('projectName')}'"})
+                        if project_id:
+                            invoice_line["Project"] = project_id
                     invoice_lines.append(invoice_line)
 
             payload["PurchaseEntryLines"] = invoice_lines
