@@ -493,8 +493,7 @@ class PurchaseEntriesSink(ExactSink):
                     #get gl account id
                     account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{line.get('accountName')}'"})
                     if not account_id:
-                        self.logger.info("skipping journal entry line due to missing or inexistent account name")
-                        continue
+                        return {"error": f"Unable to send PurchaseEntry as GL account {line.get('accountName')} doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
                     vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
                     invoice_line = {
                         "AmountFC": line.get("amount"),
@@ -528,6 +527,8 @@ class PurchaseEntriesSink(ExactSink):
         action = "created"
         method = "POST"
         if record:
+            if record.get("error"):
+                raise Exception(record.get("error"))
             # check if there is id to update or create the record
             id = record.pop("Id", None)
             if id:
