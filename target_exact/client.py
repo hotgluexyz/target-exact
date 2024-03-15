@@ -122,7 +122,7 @@ class ExactSink(HotglueSink):
                 msg = self.response_error_message(response)
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": msg})
+                self.logger.error({"error": f"{msg} in url {response.url}"})
             except:
                 msg = response.text
             raise FatalAPIError(msg)
@@ -130,7 +130,7 @@ class ExactSink(HotglueSink):
             try:
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": msg})
+                self.logger.error({"error": f"{msg} in url {response.url}"})
                 self.update_state(msg)
             except:
                 msg = self.response_error_message(response)
