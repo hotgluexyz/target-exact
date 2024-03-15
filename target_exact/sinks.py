@@ -522,6 +522,7 @@ class PurchaseEntriesSink(ExactSink):
         state_updates = dict()
         endpoint = self.endpoint
         action = "created"
+        method = "POST"
         if record:
             # check if there is id to update or create the record
             id = record.pop("Id", None)
