@@ -117,19 +117,13 @@ class ExactSink(HotglueSink):
     
     def validate_response(self, response: requests.Response) -> None:
         """Validate HTTP response."""
-        if response.status_code in [429] or 500 <= response.status_code < 600:
-            try:
-                msg = self.response_error_message(response)
-                res_json = xmltodict.parse(response.text)
-                msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": f"{msg} in url {response.url} with status code {response.status_code}"})
-            except:
-                if response.status_code == 429:
-                    msg = "Too many requests"
-                else:
-                    msg = response.text
+        if response.status_code in [429]:
+            if response.status_code == 429:
+                msg = "429 too many requests, backing off"
+            else:
+                msg = response.text
             raise RetriableAPIError(msg)
-        elif 400 <= response.status_code < 500:
+        elif 400 <= response.status_code < 600 and response.status_code not in [429]:
             try:
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
