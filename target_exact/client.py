@@ -124,8 +124,11 @@ class ExactSink(HotglueSink):
                 msg = res_json["error"]["message"]["#text"]
                 self.logger.error({"error": f"{msg} in url {response.url}"})
             except:
-                msg = response.text
-            raise FatalAPIError(msg)
+                if response.status_code == 429:
+                    msg = "Too many requests"
+                else:
+                    msg = response.text
+            raise RetriableAPIError(msg)
         elif 400 <= response.status_code < 500:
             try:
                 res_json = xmltodict.parse(response.text)
