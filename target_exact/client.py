@@ -122,7 +122,7 @@ class ExactSink(HotglueSink):
                 msg = self.response_error_message(response)
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": f"{msg} in url {response.url}"})
+                self.logger.error({"error": f"{msg} in url {response.url} with status code {response.status_code}"})
             except:
                 if response.status_code == 429:
                     msg = "Too many requests"
@@ -133,7 +133,7 @@ class ExactSink(HotglueSink):
             try:
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": f"{msg} in url {response.url}"})
+                self.logger.error({"error": f"{msg} in url {response.url} with status code {response.status_code}"})
                 self.update_state(msg)
             except:
                 msg = self.response_error_message(response)
