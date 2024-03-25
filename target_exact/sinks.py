@@ -400,6 +400,7 @@ class PurchaseEntriesSink(ExactSink):
 
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
+    line = 0
 
     def _create_document(self):
         # Creates a document for the journal entry
@@ -454,7 +455,8 @@ class PurchaseEntriesSink(ExactSink):
         return new_document_id
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-
+        self.line = self.line + 1
+        self.logger.info(f"Processing line {self.line}")
         if record.get("division") and not self.current_division:
             self.endpoint = f"{record.get('division')}/{self.endpoint}"
 
@@ -518,6 +520,8 @@ class PurchaseEntriesSink(ExactSink):
             record["attachments"] = json.loads(record["attachments"])
             if len(record["attachments"]) > 0:
                 payload["Document"] = self._upload_attachment(record["attachments"][0]["name"], record["attachments"][0].get("id"))
+        
+        self.logger.info(f"Finishied processing line {self.line}")
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
@@ -527,6 +531,7 @@ class PurchaseEntriesSink(ExactSink):
         action = "created"
         method = "POST"
         if record:
+            self.logger.info(f"Sending line {self.line}")
             if record.get("error"):
                 raise Exception(record.get("error"))
             # check if there is id to update or create the record
@@ -542,6 +547,7 @@ class PurchaseEntriesSink(ExactSink):
             if response.status_code == 201:
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
+            self.logger.info(f"Line {self.line} sent")
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
 
