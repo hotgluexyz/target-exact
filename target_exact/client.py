@@ -32,8 +32,13 @@ class ExactSink(HotglueSink):
 
     @property
     def base_url(self) -> str:
-        url = self.config.get("auth_url", "https://start.exactonline.nl/api/oauth2/token")
-        url = re.findall("(.*)/oauth2",url)[0]
+        url = self.config.get("auth_url", self.config.get("uri")) or "https://start.exactonline.nl/api/oauth2/token"
+
+        if "token" in url:
+            url = re.findall("(.*)/oauth2", url)[0]
+        elif "api" not in url:
+            url = f"{url}/api"
+
         base_url = f"{url}/v1/"
         if self.current_division:
             return f"{base_url}/{self.current_division}"
@@ -41,12 +46,13 @@ class ExactSink(HotglueSink):
     
     @property
     def authenticator(self):
-        url = self.config.get("auth_url", "https://start.exactonline.nl/api/oauth2/token")
-        if not url.endswith("/token"):
-            url += "/token"
-
+        oauth_url = self.config.get("auth_url", self.config.get("uri")) or "https://start.exactonline.nl/api/oauth2/token"
+        if "token" not in oauth_url:
+            oauth_url = f"{oauth_url}/api/oauth2/token"
+        if not oauth_url.endswith("/token"):
+            oauth_url += "/token"
         return ExactAuthenticator(
-            self._target, self.auth_state, url
+            self._target, self.auth_state, oauth_url
         )
     
     @property
