@@ -169,6 +169,7 @@ class SuppliersSink(ExactSink):
         state_updates = dict()
         method = "POST"
         endpoint = self.endpoint
+        action = "created"
         if record:
             bankAccounts = record.pop("bankAccounts", None)
             # check if there is id to update or create the record
@@ -176,11 +177,12 @@ class SuppliersSink(ExactSink):
             if id:
                 endpoint = f"{self.endpoint}(guid'{id}')"
                 method = "PUT"
+                state_updates = {"is_updated": True}
+                action = "updated"
+            # send request
             response = self.request_api(
                 method, endpoint=endpoint, request_data=record
             )
-            res_json = xmltodict.parse(response.text)
-            id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
             # send bank account data if exists
             if bankAccounts:
                 for bankAccount in bankAccounts: # how not to send dupplicated bank accounts
@@ -195,11 +197,14 @@ class SuppliersSink(ExactSink):
                             "BankAccountHolderName": bankAccount.get("holderName"),
                             "BICCode": bankAccount.get("swiftCode")
                         }
-                        response = self.request_api(
+                        bank_acct_response = self.request_api(
                             "POST", endpoint="/crm/BankAccounts", request_data=ba_payload
                         )
-            res_json = xmltodict.parse(response.text)
-            self.logger.info(f"{self.name} created with id: {id}")
+            # get new id if it's a new supplier else use id used for update
+            if response.status_code == 201:
+                res_json = xmltodict.parse(response.text)
+                id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+                self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
 
 
