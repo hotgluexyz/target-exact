@@ -488,6 +488,7 @@ class PurchaseEntriesSink(ExactSink):
         if supplier_id:
             payload["Supplier"] = supplier_id
 
+        lookup_taxes = self.config.get("lookup_taxes") if self.config.get("lookup_taxes") == False else True
         invoice_lines = []
         lines = record.get("journalLines")
         if lines and isinstance(lines, str):
@@ -498,7 +499,11 @@ class PurchaseEntriesSink(ExactSink):
                     account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{line.get('accountName')}'"})
                     if not account_id:
                         return {"error": f"Unable to send PurchaseEntry as GL account {line.get('accountName')} doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
-                    vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
+                    # flag added because new tenants are sending exact taxCode but older tenants are sending tax name as taxCode
+                    if lookup_taxes:
+                        vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
+                    else:
+                        vat_code = line.get('taxCode')
                     invoice_line = {
                         "AmountFC": line.get("amount"),
                         "AmountDC": line.get("amount"),
