@@ -33,11 +33,16 @@ class BuyOrdersSink(ExactSink):
             "OrderDate": record.get("transaction_date").strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             ),
-            "OrderNumber": record.get("id"),
             "Supplier": record.get("supplier_remoteId"),
             "PurchaseOrderLines": PurchaseOrderLines,
             "buy_order_remoteId": record.get("remoteId"),
         }
+
+        if "id" in record:
+            payload["OrderNumber"] = record.get("id")
+
+        if "reference" in record:
+            payload["YourRef"] = record.get("reference")
 
         if receipt_date:
             receipt_date = receipt_date.strftime(
