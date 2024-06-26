@@ -418,44 +418,45 @@ class PurchaseEntriesSink(ExactSink):
         document_id = document_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
         return document_id
 
-    def _upload_attachment(self, attachment_name, attachment_id=None):
+    def _upload_attachment(self, attachments):
         """
         Checks if the file is a valid PDF file and uploads it to the API
         Gets all the files from the path set in config or the default path
         """
         input_path = self.config.get("input_path",'./')
+        new_document_id = None
 
-        # some attachments are exported like {attachment_id}_{attachment_name} due to duplicated names
-        if attachment_id:
-            attachment_name = f"{attachment_id}_{attachment_name}"
+        for attachment in attachments:
+            attachment_id = attachment.get("id")
+            attachment_name = attachment.get("name")
+            # some attachments are exported like {attachment_id}_{attachment_name} due to duplicated names
+            if attachment_id:
+                attachment_name = f"{attachment_id}_{attachment_name}"
 
-        if not attachment_name:
-            return None
+            if not attachment_name:
+                continue
 
-        if not attachment_name.endswith(".pdf"):
-            self.logger.info(f"Attachment {attachment_name} is not a PDF file")
-            return None
+            input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
+            with open(f"{input_path}{attachment_name}", "rb") as f:
+                attachment = f.read()
+                attachment = base64.b64encode(attachment)
 
-        input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
-        with open(f"{input_path}{attachment_name}", "rb") as f:
-            attachment = f.read()
-            attachment = base64.b64encode(attachment)
+            if not new_document_id:
+                new_document_id = self._create_document()
 
-        new_document_id = self._create_document()
+            attachment_payload = {
+                "Attachment": attachment,
+                "FileName": attachment_name,
+                "Document": new_document_id,
+            }
 
-        attachment_payload = {
-            "Attachment": attachment,
-            "FileName": attachment_name,
-            "Document": new_document_id,
-        }
+            attachment = self.request_api(
+                "POST", endpoint="/documents/DocumentAttachments",
+                request_data=attachment_payload
+            )
 
-        attachment = self.request_api(
-            "POST", endpoint="/documents/DocumentAttachments",
-            request_data=attachment_payload
-        )
-
-        attachment_json = xmltodict.parse(attachment.text)
-        attachment_id = attachment_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            attachment_json = xmltodict.parse(attachment.text)
+            attachment_id = attachment_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
         return new_document_id
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
@@ -525,8 +526,10 @@ class PurchaseEntriesSink(ExactSink):
         payload = self.clean_payload(payload)
         if record.get("attachments"):
             record["attachments"] = json.loads(record["attachments"])
-            if len(record["attachments"]) > 0:
-                payload["Document"] = self._upload_attachment(record["attachments"][0]["name"], record["attachments"][0].get("id"))
+            if isinstance(record["attachments"], list):
+                payload["Document"] = self._upload_attachment(record["attachments"])
+            else:
+                return {"error": "Attachments should be a list", "externalId": record.get("externalId")}
         
         return payload
 
