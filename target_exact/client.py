@@ -123,46 +123,88 @@ class ExactSink(HotglueSink):
     
     def validate_response(self, response: requests.Response) -> None:
         """Validate HTTP response."""
-        if response.status_code in [429] or 500 <= response.status_code < 600:
-            try:
-                msg = self.response_error_message(response)
-                res_json = xmltodict.parse(response.text)
-                msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": msg})
-            except:
-                msg = self.response_error_message(response)
+        if response.status_code in [429]:
+            if response.status_code == 429:
+                msg = "429 too many requests, backing off"
+            else:
+                msg = response.text
             raise RetriableAPIError(msg)
-        elif 400 <= response.status_code < 500:
+        elif 400 <= response.status_code < 600 and response.status_code not in [429]:
             try:
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
-                self.logger.error({"error": msg})
+                msg = {"error": msg , "url": response.url, "status code": response.status_code}
+                self.logger.error({"error": f"{msg} in url {response.url} with status code {response.status_code}"})
             except:
                 msg = self.response_error_message(response)
             raise FatalAPIError(msg)
+    
+    def process_record(self, record: dict, context: dict) -> None:
+        """Process the record."""
+        if not self.latest_state:
+            self.init_state()
+
+        hash = self.build_record_hash(record)
+
+        existing_state =  self.get_existing_state(hash)
+
+        if existing_state:
+            return self.update_state(existing_state, is_duplicate=True)
+
+        state = {"hash": hash}
+
+        id = None
+        success = False
+        state_updates = dict()
+
+        external_id = record.pop("externalId", None)
+        
+        try:
+            id, success, state_updates = self.upsert_record(record, context)
+        except Exception as e:
+            self.logger.exception("Upsert record error")
+
+            if self.auth_state:
+                self.update_state(self.auth_state)
+                return
+            state_updates['error'] = str(e)
+
+        if success:
+            self.logger.info(f"{self.name} processed id: {id}")
+
+        state["success"] = success
+
+        if id:
+            state["id"] = id
+        if not success and external_id:
+            state["externalId"] = external_id
+        if state_updates and isinstance(state_updates, dict):
+            state = dict(state, **state_updates)
+
+        self.update_state(state)
     
     def request_api(self, http_method, endpoint=None, params={}, request_data=None, headers={}):
         """Request records from REST endpoint(s), returning response records."""
         self.logger.info(f"REQUEST - endpoint: {endpoint}, request_body: {request_data}")
         resp = self._request(http_method, endpoint, params, request_data, headers)
         return resp
-    
+
     def parse_objs(self, obj):
         try:
             return ast.literal_eval(obj)
         except:
             return json.loads(obj)
     
-    def get_id(self, endpoint, filter):
+    def get_id(self, endpoint, filter, key="ID"):
         res = self.request_api("GET", endpoint=f"{endpoint}", params=filter)
         res_json = xmltodict.parse(res.text)
         results = res_json["feed"].get("entry")
 
         if results and len(results):
             if type(results) is dict:
-                id = results["content"]["m:properties"]["d:ID"]["#text"]
+                id = results["content"]["m:properties"][f"d:{key}"]["#text"]
             else:
-                id = results[0]["content"]["m:properties"]["d:ID"]["#text"]
+                id = results[0]["content"]["m:properties"][f"d:{key}"]["#text"]
             return id
         else:
             return None
