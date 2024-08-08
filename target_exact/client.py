@@ -176,7 +176,7 @@ class ExactSink(HotglueSink):
 
         if id:
             state["id"] = id
-        if not success and external_id:
+        if external_id:
             state["externalId"] = external_id
         if state_updates and isinstance(state_updates, dict):
             state = dict(state, **state_updates)
