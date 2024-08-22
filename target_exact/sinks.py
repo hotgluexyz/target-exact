@@ -8,7 +8,7 @@ import json
 import datetime
 
 from target_exact.client import ExactSink
-from target_exact.constants import countries
+from target_exact.constants import SALES_ORDER_STATUS, countries
 
 
 
@@ -396,5 +396,70 @@ class PurchaseEntriesSink(ExactSink):
             )
             res_json = xmltodict.parse(response.text)
             id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
+            return id, True, state_updates
+
+class SalesOrdersSink(ExactSink):
+
+    name = "SalesOrders"
+    endpoint = "/salesorder/SalesOrders"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+        
+        order_id = record.get("id")
+        order_lines = []
+        for item in record.get("line_items", [{}]):
+
+            item_id = item.get("product_id")
+            if not item_id:
+                item_endpoint = "/logistics/Items"
+                item_id = self.get_id(item_endpoint, {"$filter": f"Code eq '{item.get('sku')}'"})
+            if not item_id:
+                item_endpoint = "/logistics/Items"
+                item_id = self.get_id(item_endpoint, {"$filter": f"Code eq '{item.get('product_name')}'"})
+            if not item_id:
+                item_endpoint = "/logistics/Items"
+                item_id = self.get_id(item_endpoint, {"$filter": f"Description eq '{item.get('product_name')}'"})
+                
+            order_line = {
+                "OrderID": order_id,
+                "Item": item_id,
+                "Quantity": item.get("quantity"),
+                "NetPrice": item.get("unit_price"),
+                "VATCode": item.get("tax_code"),
+                "Description": item.get("product_name"),
+                "Notes": item.get("sku")
+            }
+            if item.get("discount_amount"):
+                order_line["Discount"] = item.get("discount_amount")/item.get("unit_price")
+            order_lines.append(order_line)
+        
+        accounts_endpoint = '/crm/Accounts'
+        payload = {
+            "YourRef": order_id,
+            "SalesOrderLines": order_lines,
+            "ApprovalStatus": SALES_ORDER_STATUS.get(record.get("status"), 0),
+            "OrderDate": record.get("transaction_date", None) or record.get("created_at"),
+            "OrderNumber": record.get("order_number"),
+            "AmountDiscount": record.get("total_discount"),
+            "Description": record.get("order_notes"),
+            "DeliverTo": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('shipping_name')}'"}),
+            "InvoiceTo": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('billing_name')}'"}),
+            "OrderedBy": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('customer_name')}'"}),
+        }
+
+        return payload
+    
+    def upsert_record(self, record: dict, context: dict):
+        state_updates = dict()
+        if record:
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:OrderID"]["#text"]
             self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates

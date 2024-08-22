@@ -243,3 +243,14 @@ countries = {
     "Zambia": "ZM",
     "Zimbabwe": "ZW"
 }
+
+# Approval status of sales order. 0=Awaiting approval, 1=Automatically, 2=Approved. Approve a new sales order by giving value 2 if user has SalesOrderApproval right.
+SALES_ORDER_STATUS = {
+    # Awaiting approval
+    "awaiting": 0,
+    # Automatically
+    "automatically": 1,
+    # Approved
+    "approved": 2,
+    "completed": 2,
+}
