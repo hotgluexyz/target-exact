@@ -191,9 +191,9 @@ class ExactSink(HotglueSink):
 
     def parse_objs(self, obj):
         try:
-            return ast.literal_eval(obj)
-        except:
             return json.loads(obj)
+        except:
+            return ast.literal_eval(obj)
     
     def get_id(self, endpoint, filter, key="ID"):
         res = self.request_api("GET", endpoint=f"{endpoint}", params=filter)
