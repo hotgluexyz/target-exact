@@ -428,25 +428,47 @@ class PurchaseEntriesSink(ExactSink):
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
 
-    def _create_document(self):
-        # Creates a document for the journal entry
-        document_payload = {
-            "Subject": "Journal Entry",
-            "Type": "20",
-        }
+    def _create_document(self, record_id=None):
+        # check if document has already been created for the Entry
+        if record_id:
+            endpoint = f"{self.endpoint}(guid'{record_id}')"
+            document_id = self.get_id(endpoint=endpoint, filter={}, key="Document")
+            if document_id:
+                self.logger.info(f"Document already found for entry {record_id}, appending new attachments to Document '{document_id}'")
+        else:
+            # Creates a document for the journal entry
+            document_payload = {
+                "Subject": "Journal Entry",
+                "Type": "20",
+            }
 
-        document = self.request_api("POST", endpoint="/documents/Documents", request_data=document_payload)
-        document_json = xmltodict.parse(document.text)
-        document_id = document_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            document = self.request_api("POST", endpoint="/documents/Documents", request_data=document_payload)
+            document_json = xmltodict.parse(document.text)
+            document_id = document_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
         return document_id
 
-    def _upload_attachment(self, attachments):
+    def _upload_attachment(self, attachments, record_id=None):
         """
         Checks if the file is a valid PDF file and uploads it to the API
         Gets all the files from the path set in config or the default path
         """
         input_path = self.config.get("input_path",'./')
-        new_document_id = None
+        attachment_endpoint = "/documents/DocumentAttachments"
+
+        if attachments:
+            document_id = self._create_document(record_id)
+
+        # fetch all attachments for the entry
+        att_list = self.request_api("GET", endpoint=attachment_endpoint, params={"$filter": f"Document eq guid'{document_id}'"})
+        att_list = xmltodict.parse(att_list.text)
+        att_list = att_list.get("feed", {}).get("entry")
+
+        if isinstance(att_list, dict):
+            att_list = [att_list]
+
+        existing_attachments = []
+        if att_list:
+            existing_attachments = [att["content"]["m:properties"]["d:FileName"] for att in att_list]
 
         for attachment in attachments:
             attachment_id = attachment.get("id")
@@ -455,7 +477,9 @@ class PurchaseEntriesSink(ExactSink):
             if attachment_id:
                 attachment_name = f"{attachment_id}_{attachment_name}"
 
-            if not attachment_name:
+            # check if attachment was previously sent, if so skip
+            if not attachment_name or attachment_name in existing_attachments:
+                self.logger.info(f"Attachment '{attachment_name}' already exist, skipping attachment...")
                 continue
 
             input_path = f"{input_path}/" if not input_path.endswith("/") else input_path
@@ -463,23 +487,20 @@ class PurchaseEntriesSink(ExactSink):
                 attachment = f.read()
                 attachment = base64.b64encode(attachment)
 
-            if not new_document_id:
-                new_document_id = self._create_document()
-
             attachment_payload = {
                 "Attachment": attachment,
                 "FileName": attachment_name,
-                "Document": new_document_id,
+                "Document": document_id,
             }
 
             attachment = self.request_api(
-                "POST", endpoint="/documents/DocumentAttachments",
+                "POST", endpoint=attachment_endpoint,
                 request_data=attachment_payload
             )
 
             attachment_json = xmltodict.parse(attachment.text)
             attachment_id = attachment_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
-        return new_document_id
+        return document_id
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         try:
@@ -549,8 +570,8 @@ class PurchaseEntriesSink(ExactSink):
             payload = self.clean_payload(payload)
             if record.get("attachments"):
                 record["attachments"] = json.loads(record["attachments"])
-                if isinstance(record["attachments"], list):
-                    payload["Document"] = self._upload_attachment(record["attachments"])
+                if isinstance(record["attachments"], list) and record["attachments"]:
+                    payload["Document"] = self._upload_attachment(record["attachments"], payload.get("Id"))
                 else:
                     return {"error": "Attachments should be a list", "externalId": record.get("externalId")}
             
@@ -575,9 +596,27 @@ class PurchaseEntriesSink(ExactSink):
                 action = "updated"
                 record.pop("PurchaseEntryLines", None)
                 state_updates["is_updated"] = True
-            response = self.request_api(
-                method, endpoint=endpoint, request_data=record
-            )
+            
+            try:
+                response = self.request_api(
+                    method, endpoint=endpoint, request_data=record
+                )
+            except Exception as e:
+                # delete attachments if entry is new and posting failed
+                if method == "POST" and record.get("Document"):
+                    self.logger.info(f"Error happened while creating PurchaeEntry, deleting attachments associated with it...")
+                    try:
+                        response = self.request_api(
+                            "DELETE", endpoint=f"/documents/Documents(guid'{record['Document']}')"
+                        )
+                    except Exception:
+                        self.logger.info(f"Document '{record['Document']}' couldn't be deleted due to error {str(e)}.")
+
+                    if response.status_code == 204:
+                        self.logger.info(f"Document '{record['Document']}' succesfully deleted.")
+
+                    raise Exception(e)
+
             if response.status_code == 201:
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]

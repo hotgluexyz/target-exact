@@ -198,7 +198,7 @@ class ExactSink(HotglueSink):
     def get_id(self, endpoint, filter, key="ID"):
         res = self.request_api("GET", endpoint=f"{endpoint}", params=filter)
         res_json = xmltodict.parse(res.text)
-        results = res_json["feed"].get("entry")
+        results = res_json.get("feed", {}).get("entry") or res_json.get("entry")
 
         if results and len(results):
             if type(results) is dict:
