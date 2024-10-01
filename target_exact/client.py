@@ -10,6 +10,8 @@ from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 import xmltodict
 import re
 import ast
+from http.client import RemoteDisconnected
+from requests.exceptions import ConnectionError
 
 class ExactSink(HotglueSink):
 
@@ -83,9 +85,9 @@ class ExactSink(HotglueSink):
 
     @backoff.on_exception(
         backoff.expo,
-        (RetriableAPIError, requests.exceptions.ReadTimeout),
-        max_tries=5,
-        factor=2,
+        (RetriableAPIError, requests.exceptions.ReadTimeout, RemoteDisconnected, ConnectionError),
+        max_tries=8,
+        factor=3,
     )
     def _request(
         self, http_method, endpoint, params=None, request_data=None, headers=None
