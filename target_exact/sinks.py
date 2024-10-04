@@ -6,6 +6,7 @@ import base64
 import xmltodict
 import json
 import datetime
+from pendulum import parse
 
 from target_exact.client import ExactSink
 from target_exact.constants import SALES_ORDER_STATUS, countries
@@ -28,9 +29,7 @@ class BuyOrdersSink(ExactSink):
         receipt_date = (
             record.get("created_at")
             if record.get("created_at")
-            else datetime.datetime.now(datetime.timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.%fZ"
-            )
+            else datetime.datetime.now(datetime.timezone.utc)
         )
 
         payload = {
@@ -49,6 +48,9 @@ class BuyOrdersSink(ExactSink):
             payload["YourRef"] = record.get("reference")
 
         if receipt_date:
+            if isinstance(receipt_date, str):
+                receipt_date = parse(receipt_date)
+
             receipt_date = receipt_date.strftime(
                             "%Y-%m-%dT%H:%M:%S.%fZ"
                         )
