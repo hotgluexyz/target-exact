@@ -26,11 +26,7 @@ class BuyOrdersSink(ExactSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         PurchaseOrderLines = []
 
-        receipt_date = (
-            record.get("created_at")
-            if record.get("created_at")
-            else datetime.datetime.now(datetime.timezone.utc)
-        )
+        receipt_date = record.get("created_at")
 
         payload = {
             "OrderDate": record.get("transaction_date").strftime(
