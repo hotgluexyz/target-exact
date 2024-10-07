@@ -60,6 +60,10 @@ class BuyOrdersSink(ExactSink):
                 if not item.get("lot_size") or item.get("lot_size") == False:
                     item["lot_size"] = 1
                 line_item["QuantityInPurchaseUnits"] = item.get("quantity") / item.get("lot_size", 1)
+
+                if item.get("sub_total_price"):
+                    line_item["UnitPrice"] = item.get("sub_total_price") / line_item["QuantityInPurchaseUnits"]
+
                 if item.get("receipt_date"):
                     line_item["ReceiptDate"] = item.get("receipt_date")
                 elif receipt_date:
