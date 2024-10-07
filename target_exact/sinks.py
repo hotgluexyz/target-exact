@@ -532,6 +532,8 @@ class PurchaseEntriesSink(ExactSink):
             supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('supplierName')}'"})
             if supplier_id:
                 payload["Supplier"] = supplier_id
+            if not supplier_id:
+                return {"error": f"Unable to send PurchaseEntry as Supplier '{record.get('supplierName')}' doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
 
             lookup_taxes = self.config.get("lookup_taxes") if self.config.get("lookup_taxes") == False else True
             invoice_lines = []
