@@ -619,7 +619,7 @@ class PurchaseEntriesSink(ExactSink):
                     if response.status_code == 204:
                         self.logger.info(f"Document '{record['Document']}' succesfully deleted.")
 
-                    raise Exception(e)
+                raise Exception(e)
 
             if response.status_code == 201:
                 res_json = xmltodict.parse(response.text)
