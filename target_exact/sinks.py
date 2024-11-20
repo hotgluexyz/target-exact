@@ -488,3 +488,41 @@ class SalesOrdersSink(ExactSink):
             id = res_json["entry"]["content"]["m:properties"]["d:OrderID"]["#text"]
             self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
+        
+
+
+class ShopOrdersSink(ExactSink):
+    name = "ShopOrders"
+    endpoint = "/manufacturing/ShopOrders"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+        
+        payload = {
+            "Item" : record.get("product_remoteId"),
+            "PlannedQuantity" : record.get("plannedQuantity"),
+            "Warehouse" : record.get("warehouse_remoteId", None),
+            "YourRef": record.get("id")
+        }
+
+        return payload
+
+    def upsert_record(self, record: dict, context: dict) -> tuple:
+        """Process the record."""
+        state_updates = dict()
+        if not record:
+            raise Exception("No record to upsert")
+        try:
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
+            return id, True, state_updates
+        except Exception as e:
+            self.logger.error(f"Failed to upsert record: {e}")
+            raise e
+
+    
