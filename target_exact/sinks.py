@@ -503,6 +503,7 @@ class ShopOrdersSink(ExactSink):
             "Item" : record.get("product_remoteId"),
             "PlannedQuantity" : record.get("plannedQuantity"),
             "Warehouse" : record.get("warehouse_remoteId", None),
+            "PlannedDate" : record.get("delivery_date"),
             "YourRef": record.get("id")
         }
 
