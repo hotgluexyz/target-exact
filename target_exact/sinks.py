@@ -504,8 +504,12 @@ class ShopOrdersSink(ExactSink):
             "PlannedQuantity" : record.get("plannedQuantity"),
             "Warehouse" : record.get("warehouse_remoteId", None),
             "PlannedDate" : record.get("delivery_date"),
-            "YourRef": record.get("id")
+            "YourRef": record.get("id"),
+
         }
+
+        if record.get("transaction_date"):
+            payload["EntryDate"] = record["transaction_date"].strftime("%Y-%m-%dT%H:%M:%S.%fZ") 
 
         return payload
 
