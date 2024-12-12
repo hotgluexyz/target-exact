@@ -310,6 +310,7 @@ class PurchaseInvoicesSink(ExactSink):
             else:
                 code = journals[0]["content"]["m:properties"]["d:Code"]
             return code
+        
     def preprocess_record(self, record: dict, context: dict) -> dict:
         try:
             if record.get("division") and not self.current_division:
@@ -529,7 +530,9 @@ class PurchaseEntriesSink(ExactSink):
                 "Id": record.get("id")
             }
             #get supplier id
-            supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
+            supplier_id = None
+            if record.get('supplierCode'):
+                supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
             if not supplier_id:
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('supplierName')}'"})
             if supplier_id:
@@ -545,7 +548,11 @@ class PurchaseEntriesSink(ExactSink):
                 if len(lines):
                     for line in lines:
                         #get gl account id
-                        account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{line.get('accountName')}'"})
+                        account_id = None
+                        if line.get("accountNumber"):
+                            account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Code eq '{line.get('accountNumber')}'"})
+                        if not account_id:
+                            account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{line.get('accountName')}'"})
                         if not account_id:
                             return {"error": f"Unable to send PurchaseEntry as GL account {line.get('accountName')} doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
                         # flag added because new tenants are sending exact taxCode but older tenants are sending tax name as taxCode
