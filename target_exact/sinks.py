@@ -530,4 +530,123 @@ class ShopOrdersSink(ExactSink):
             self.logger.error(f"Failed to upsert record: {e}")
             raise e
 
+
+class WarehouseTransfersSink(ExactSink):
+    """Exact Online Warehouse Transfers sink class."""
+
+    name = "WarehouseTransfers"
+    endpoint = "/inventory/WarehouseTransfers"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+        """
+        Preprocess the record before sending it to the Exact Online API.
+        
+        Args:
+            record: The record to preprocess
+            context: Additional context information
+            
+        Returns:
+            dict: The preprocessed record
+        """
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+
+        # Validate required fields
+        required_fields = ["warehouse_from_id", "warehouse_to_id"]
+        for field in required_fields:
+            if not record.get(field):
+                self.logger.warning(f"Missing required field '{field}'")
+                return None
+
+        # Basic payload structure
+        payload = {
+            "EntryDate": record.get("entry_date"),
+            "WarehouseFrom": record.get("warehouse_from_id"),
+            "WarehouseTo": record.get("warehouse_to_id"),
+            "Description": record.get("description"),
+            "Status": record.get("status", 10),  # Default to 10-Open if not specified
+        }
+        
+        # Add optional fields if they exist
+        if record.get("planned_delivery_date"):
+            payload["PlannedDeliveryDate"] = record.get("planned_delivery_date")
+            
+        if record.get("planned_receipt_date"):
+            payload["PlannedReceiptDate"] = record.get("planned_receipt_date")
+            
+        if record.get("remarks"):
+            payload["Remarks"] = record.get("remarks")
+            
+        if record.get("transfer_number"):
+            payload["TransferNumber"] = record.get("transfer_number")
+        
+        # Process transfer lines - these will be included in the main payload
+        transfer_lines = []
+        if "line_items" in record:
+            for item in record.get("line_items", []):
+                # Ensure required fields are present
+                if not item.get("item_id"):
+                    self.logger.warning(f"Missing required field 'item_id' in line item")
+                    continue
+                    
+                if not item.get("quantity"):
+                    self.logger.warning(f"Missing required field 'quantity' in line item")
+                    continue
+                
+                line_item = {
+                    "Item": item.get("item_id"),
+                    "Quantity": item.get("quantity"),
+                }
+                
+                # Add optional line item fields if they exist
+                if item.get("storage_location_from"):
+                    line_item["StorageLocationFrom"] = item.get("storage_location_from")
+                    
+                if item.get("storage_location_to"):
+                    line_item["StorageLocationTo"] = item.get("storage_location_to")
+                    
+                if item.get("description"):
+                    line_item["Description"] = item.get("description")
+                    
+                if item.get("unit_code"):
+                    line_item["UnitCode"] = item.get("unit_code")
+                    
+                transfer_lines.append(line_item)
+            
+            # Only add the lines if we have valid ones
+            if transfer_lines:
+                payload["WarehouseTransferLines"] = transfer_lines
+            else:
+                self.logger.warning("No valid transfer lines found in the record")
+                return None
+        
+        return payload
+
+    def upsert_record(self, record: dict, context: dict) -> tuple:
+        """
+        Process the record and send it to the Exact Online API.
+        
+        Args:
+            record: The record to process
+            context: Additional context information
+            
+        Returns:
+            tuple: (id, success, state_updates)
+        """
+        state_updates = dict()
+        if not record:
+            return None, False, state_updates
+            
+        try:
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            id = res_json["entry"]["content"]["m:properties"]["d:TransferID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {id}")
+            return id, True, state_updates
+        except Exception as e:
+            self.logger.error(f"Failed to upsert record: {e}")
+            raise e
+
     
