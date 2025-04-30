@@ -30,7 +30,7 @@ class TargetExact(TargetHotglue):
         super().__init__(config, parse_env_config, validate_config)
 
 
-    SINK_TYPES = [BuyOrdersSink, UpdateInventory, ItemsSink, PurchaseInvoicesSink, SuppliersSink, PurchaseEntriesSink, SalesOrdersSink, ShopOrdersSink,]
+    SINK_TYPES = [BuyOrdersSink, UpdateInventory, ItemsSink, PurchaseInvoicesSink, SuppliersSink, PurchaseEntriesSink, SalesOrdersSink, ShopOrdersSink, WarehouseTransfersSink]
     MAX_PARALLELISM = 10
     name = "target-exact"
 
