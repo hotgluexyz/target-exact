@@ -560,33 +560,34 @@ class WarehouseTransfersSink(ExactSink):
 
         # Basic payload structure
         payload = {
-            "EntryDate": record.get("entry_date"),
-            "WarehouseFrom": record.get("warehouse_from_id"),
-            "WarehouseTo": record.get("warehouse_to_id"),
-            "Description": record.get("description"),
-            "Status": record.get("status", 10),  # Default to 10-Open if not specified
+            "EntryDate": record.get("entryDate"),
+            "WarehouseFrom": record.get("warehouseFromId"),
+            "WarehouseTo": record.get("warehouseToId"),
         }
-        
+
         # Add optional fields if they exist
-        if record.get("planned_delivery_date"):
-            payload["PlannedDeliveryDate"] = record.get("planned_delivery_date")
+        if record.get("description"):
+            payload["Description"] = record.get("description")
+
+        if record.get("status"):
+            payload["Status"] = record.get("status")
+        
+        if record.get("plannedDeliveryDate"):
+            payload["PlannedDeliveryDate"] = record.get("plannedDeliveryDate")
             
-        if record.get("planned_receipt_date"):
-            payload["PlannedReceiptDate"] = record.get("planned_receipt_date")
+        if record.get("plannedReceiptDate"):
+            payload["PlannedReceiptDate"] = record.get("plannedReceiptDate")
             
         if record.get("remarks"):
             payload["Remarks"] = record.get("remarks")
             
-        if record.get("transfer_number"):
-            payload["TransferNumber"] = record.get("transfer_number")
-        
         # Process transfer lines - these will be included in the main payload
         transfer_lines = []
-        if "line_items" in record:
-            for item in record.get("line_items", []):
+        if "lineItems" in record:
+            for item in record.get("lineItems", []):
                 # Ensure required fields are present
-                if not item.get("item_id"):
-                    self.logger.warning(f"Missing required field 'item_id' in line item")
+                if not item.get("itemId"):
+                    self.logger.warning(f"Missing required field 'itemId' in line item")
                     continue
                     
                 if not item.get("quantity"):
@@ -594,22 +595,20 @@ class WarehouseTransfersSink(ExactSink):
                     continue
                 
                 line_item = {
-                    "Item": item.get("item_id"),
+                    "Item": item.get("product_remoteId"),
                     "Quantity": item.get("quantity"),
                 }
                 
                 # Add optional line item fields if they exist
-                if item.get("storage_location_from"):
-                    line_item["StorageLocationFrom"] = item.get("storage_location_from")
+                if item.get("storageLocationFrom"):
+                    line_item["StorageLocationFrom"] = item.get("storageLocationFrom")
                     
-                if item.get("storage_location_to"):
-                    line_item["StorageLocationTo"] = item.get("storage_location_to")
+                if item.get("storageLocationTo"):
+                    line_item["StorageLocationTo"] = item.get("storageLocationTo")
                     
                 if item.get("description"):
                     line_item["Description"] = item.get("description")
                     
-                if item.get("unit_code"):
-                    line_item["UnitCode"] = item.get("unit_code")
                     
                 transfer_lines.append(line_item)
             
@@ -635,8 +634,7 @@ class WarehouseTransfersSink(ExactSink):
         """
         state_updates = dict()
         if not record:
-            return None, False, state_updates
-            
+            raise Exception("No record to upsert")
         try:
             response = self.request_api(
                 "POST", endpoint=self.endpoint, request_data=record
