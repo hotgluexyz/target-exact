@@ -586,8 +586,8 @@ class WarehouseTransfersSink(ExactSink):
         if "lineItems" in record:
             for item in record.get("lineItems", []):
                 # Ensure required fields are present
-                if not item.get("itemId"):
-                    self.logger.warning(f"Missing required field 'itemId' in line item")
+                if not item.get("product_remoteId"):
+                    self.logger.warning(f"Missing required field 'product_remoteId' in line item")
                     continue
                     
                 if not item.get("quantity"):
