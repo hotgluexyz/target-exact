@@ -583,8 +583,8 @@ class WarehouseTransfersSink(ExactSink):
             
         # Process transfer lines - these will be included in the main payload
         transfer_lines = []
-        if "lineItems" in record:
-            for item in record.get("lineItems", []):
+        if "line_items" in record:
+            for item in record.get("line_items", []):
                 # Ensure required fields are present
                 if not item.get("product_remoteId"):
                     self.logger.warning(f"Missing required field 'product_remoteId' in line item")
