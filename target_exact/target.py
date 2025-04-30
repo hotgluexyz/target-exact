@@ -8,6 +8,7 @@ from target_exact.sinks import (
     PurchaseEntriesSink,
     SalesOrdersSink,
     ShopOrdersSink,
+    WarehouseTransfersSink
 )
 
 from target_hotglue.target import TargetHotglue
