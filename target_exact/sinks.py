@@ -530,4 +530,77 @@ class ShopOrdersSink(ExactSink):
             self.logger.error(f"Failed to upsert record: {e}")
             raise e
 
-    
+class WarehouseTransfersSink(ExactSink):
+    """Exact Online Warehouse Transfers sink class."""
+
+    name = "WarehouseTransfers"
+    endpoint = "/inventory/WarehouseTransfers"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+        WarehouseTransferLines = []
+
+        # Build basic payload
+        payload = {
+            "EntryDate": record.get("transaction_date").strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            ),
+            "WarehouseFrom": record.get("warehouse_from_id"),
+            "WarehouseTo": record.get("warehouse_to_id"),
+            "WarehouseTransferLines": WarehouseTransferLines,
+        }
+
+        # Optional top-level fields
+        if "description" in record:
+            payload["Description"] = record.get("description")
+
+        if "status" in record:
+            payload["Status"] = record.get("status")
+
+        if "planned_delivery_date" in record:
+            payload["PlannedDeliveryDate"] = record.get("planned_delivery_date")
+
+        if "planned_receipt_date" in record:
+            payload["PlannedReceiptDate"] = record.get("planned_receipt_date")
+
+        if "remarks" in record:
+            payload["Remarks"] = record.get("remarks")
+
+        # Process transfer lines
+        if "line_items" in record:
+            record["line_items"] = json.loads(record["line_items"])
+
+            for item in record.get("line_items"):
+                line_item = {}
+                line_item["Item"] = item.get("product_remoteId")
+                line_item["Quantity"] = item.get("quantity")
+
+                # Optional line item fields
+                if item.get("storage_location_from_id"):
+                    line_item["StorageLocationFrom"] = item["storage_location_from_id"]
+                if item.get("storage_location_to_id"):
+                    line_item["StorageLocationTo"] = item["storage_location_to_id"]
+                if item.get("description"):
+                    line_item["Description"] = item["description"]
+
+                WarehouseTransferLines.append(line_item)
+
+            return payload
+        else:
+            return self.logger.warning("No valid transfer lines found in the record")
+
+    def upsert_record(self, record: dict, context: dict) -> tuple:
+        state_updates = dict()
+        if not record:
+            raise Exception("No record to upsert")
+        try:
+            response = self.request_api(
+                "POST", endpoint=self.endpoint, request_data=record
+            )
+            res_json = xmltodict.parse(response.text)
+            transfer_id = res_json["entry"]["content"]["m:properties"]["d:TransferID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {transfer_id}")
+            return transfer_id, True, state_updates
+
+        except Exception as e:
+            self.logger.error(f"Failed to upsert record: {e}")
+            raise e
