@@ -537,8 +537,7 @@ class WarehouseTransfersSink(ExactSink):
     endpoint = "/inventory/WarehouseTransfers"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        if record.get("division") and not self.current_division:
-            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+        WarehouseTransferLines = []
 
         # Build basic payload
         payload = {
@@ -547,45 +546,47 @@ class WarehouseTransfersSink(ExactSink):
             ),
             "WarehouseFrom": record.get("warehouse_from_id"),
             "WarehouseTo": record.get("warehouse_to_id"),
+            "WarehouseTransferLines": WarehouseTransferLines,
         }
 
         # Optional top-level fields
-        optional_fields = {
-            "description": "Description",
-            "status": "Status",
-            "planned_delivery_date": "PlannedDeliveryDate",
-            "planned_receipt_date": "PlannedReceiptDate",
-            "remarks": "Remarks"
-        }
-        for field, key in optional_fields.items():
-            if record.get(field):
-                payload[key] = record.get(field)
+        if "description" in record:
+            payload["Description"] = record.get("description")
+
+        if "status" in record:
+            payload["Status"] = record.get("status")
+
+        if "planned_delivery_date" in record:
+            payload["PlannedDeliveryDate"] = record.get("planned_delivery_date")
+
+        if "planned_receipt_date" in record:
+            payload["PlannedReceiptDate"] = record.get("planned_receipt_date")
+
+        if "remarks" in record:
+            payload["Remarks"] = record.get("remarks")
 
         # Process transfer lines
-        transfer_lines = []
+        if "line_items" in record:
+            record["line_items"] = json.loads(record["line_items"])
 
-        for item in record.get("line_items", []):
-            line_item = {
-                "Item": item["product_remoteId"],
-                "Quantity": item["quantity"],
-            }
+            for item in record.get("line_items"):
+                line_item = {}
+                line_item["Item"] = item.get("product_remoteId")
+                line_item["Quantity"] = item.get("quantity")
 
-            # Optional line item fields
-            if item.get("storage_location_from_id"):
-                line_item["StorageLocationFrom"] = item["storage_location_from_id"]
-            if item.get("storage_location_to_id"):
-                line_item["StorageLocationTo"] = item["storage_location_to_id"]
-            if item.get("description"):
-                line_item["Description"] = item["description"]
+                # Optional line item fields
+                if item.get("storage_location_from_id"):
+                    line_item["StorageLocationFrom"] = item["storage_location_from_id"]
+                if item.get("storage_location_to_id"):
+                    line_item["StorageLocationTo"] = item["storage_location_to_id"]
+                if item.get("description"):
+                    line_item["Description"] = item["description"]
 
-            transfer_lines.append(line_item)
+                WarehouseTransferLines.append(line_item)
 
-        if not transfer_lines:
-            self.logger.warning("No valid transfer lines found in the record")
-            return None
-
-        payload["WarehouseTransferLines"] = transfer_lines
-        return payload
+            return payload
+        else:
+            return self.logger.warning("No valid transfer lines found in the record")
 
     def upsert_record(self, record: dict, context: dict) -> tuple:
         state_updates = dict()
