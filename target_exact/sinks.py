@@ -546,79 +546,71 @@ class WarehouseTransfersSink(ExactSink):
             context: Additional context information
             
         Returns:
-            dict: The preprocessed record
+            dict: The preprocessed record, or None if validation fails
         """
         if record.get("division") and not self.current_division:
             self.endpoint = f"{record.get('division')}/{self.endpoint}"
 
-        # Validate required fields
+        # Validate required top-level fields
         required_fields = ["warehouse_from_id", "warehouse_to_id"]
-        for field in required_fields:
-            if not record.get(field):
-                self.logger.warning(f"Missing required field '{field}'")
-                return None
+        missing_top_fields = [field for field in required_fields if not record.get(field)]
+        if missing_top_fields:
+            self.logger.warning(f"Missing required top-level field(s): {missing_top_fields}")
+            return None
 
-        # Basic payload structure
+        # Build basic payload
         payload = {
             "EntryDate": record.get("transaction_date"),
             "WarehouseFrom": record.get("warehouse_from_id"),
             "WarehouseTo": record.get("warehouse_to_id"),
         }
 
-        # Add optional fields if they exist
-        if record.get("description"):
-            payload["Description"] = record.get("description")
+        # Optional top-level fields
+        optional_fields = {
+            "description": "Description",
+            "status": "Status",
+            "planned_delivery_date": "PlannedDeliveryDate",
+            "planned_receipt_date": "PlannedReceiptDate",
+            "remarks": "Remarks"
+        }
+        for field, key in optional_fields.items():
+            if record.get(field):
+                payload[key] = record.get(field)
 
-        if record.get("status"):
-            payload["Status"] = record.get("status")
-        
-        if record.get("planned_delivery_date"):
-            payload["PlannedDeliveryDate"] = record.get("planned_delivery_date")
-            
-        if record.get("planned_receipt_date"):
-            payload["PlannedReceiptDate"] = record.get("planned_receipt_date")
-            
-        if record.get("remarks"):
-            payload["Remarks"] = record.get("remarks")
-            
-        # Process transfer lines - these will be included in the main payload
+        # Process transfer lines
         transfer_lines = []
-        if "line_items" in record:
-            for item in record.get("line_items", []):
-                # Ensure required fields are present
-                if not item.get("product_remoteId"):
-                    self.logger.warning(f"Missing required field 'product_remoteId' in line item")
-                    continue
-                    
-                if not item.get("quantity"):
-                    self.logger.warning(f"Missing required field 'quantity' in line item")
-                    continue
-                
-                line_item = {
-                    "Item": item.get("product_remoteId"),
-                    "Quantity": item.get("quantity"),
-                }
-                
-                # Add optional line item fields if they exist
-                if item.get("storage_location_from_id"):
-                    line_item["StorageLocationFrom"] = item.get("storage_location_from_id")
-                    
-                if item.get("storage_location_to_id"):
-                    line_item["StorageLocationTo"] = item.get("storage_location_to_id")
-                    
-                if item.get("description"):
-                    line_item["Description"] = item.get("description")
-                    
-                    
-                transfer_lines.append(line_item)
-            
-            # Only add the lines if we have valid ones
-            if transfer_lines:
-                payload["WarehouseTransferLines"] = transfer_lines
-            else:
-                self.logger.warning("No valid transfer lines found in the record")
-                return None
-        
+        required_line_fields = ["product_remoteId", "quantity"]
+
+        for item in record.get("line_items", []):
+            if not isinstance(item, dict):
+                self.logger.warning(f"Invalid line item format: expected dict, got {type(item)} — skipping")
+                continue
+
+            missing_line_fields = [field for field in required_line_fields if not item.get(field)]
+            if missing_line_fields:
+                self.logger.warning(f"Missing required field(s) {missing_line_fields} in line item — skipping")
+                continue
+
+            line_item = {
+                "Item": item["product_remoteId"],
+                "Quantity": item["quantity"],
+            }
+
+            # Optional line item fields
+            if item.get("storage_location_from_id"):
+                line_item["StorageLocationFrom"] = item["storage_location_from_id"]
+            if item.get("storage_location_to_id"):
+                line_item["StorageLocationTo"] = item["storage_location_to_id"]
+            if item.get("description"):
+                line_item["Description"] = item["description"]
+
+            transfer_lines.append(line_item)
+
+        if not transfer_lines:
+            self.logger.warning("No valid transfer lines found in the record")
+            return None
+
+        payload["WarehouseTransferLines"] = transfer_lines
         return payload
 
     def upsert_record(self, record: dict, context: dict) -> tuple:
@@ -640,9 +632,10 @@ class WarehouseTransfersSink(ExactSink):
                 "POST", endpoint=self.endpoint, request_data=record
             )
             res_json = xmltodict.parse(response.text)
-            id = res_json["entry"]["content"]["m:properties"]["d:TransferID"]["#text"]
-            self.logger.info(f"{self.name} created with id: {id}")
-            return id, True, state_updates
+            transfer_id = res_json["entry"]["content"]["m:properties"]["d:TransferID"]["#text"]
+            self.logger.info(f"{self.name} created with id: {transfer_id}")
+            return transfer_id, True, state_updates
+
         except Exception as e:
             self.logger.error(f"Failed to upsert record: {e}")
             raise e
