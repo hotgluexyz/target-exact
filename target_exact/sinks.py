@@ -560,9 +560,9 @@ class WarehouseTransfersSink(ExactSink):
 
         # Basic payload structure
         payload = {
-            "EntryDate": record.get("entryDate"),
-            "WarehouseFrom": record.get("warehouseFromId"),
-            "WarehouseTo": record.get("warehouseToId"),
+            "EntryDate": record.get("transaction_date"),
+            "WarehouseFrom": record.get("warehouse_from_id"),
+            "WarehouseTo": record.get("warehouse_to_id"),
         }
 
         # Add optional fields if they exist
@@ -572,11 +572,11 @@ class WarehouseTransfersSink(ExactSink):
         if record.get("status"):
             payload["Status"] = record.get("status")
         
-        if record.get("plannedDeliveryDate"):
-            payload["PlannedDeliveryDate"] = record.get("plannedDeliveryDate")
+        if record.get("planned_delivery_date"):
+            payload["PlannedDeliveryDate"] = record.get("planned_delivery_date")
             
-        if record.get("plannedReceiptDate"):
-            payload["PlannedReceiptDate"] = record.get("plannedReceiptDate")
+        if record.get("planned_receipt_date"):
+            payload["PlannedReceiptDate"] = record.get("planned_receipt_date")
             
         if record.get("remarks"):
             payload["Remarks"] = record.get("remarks")
@@ -600,11 +600,11 @@ class WarehouseTransfersSink(ExactSink):
                 }
                 
                 # Add optional line item fields if they exist
-                if item.get("storageLocationFrom"):
-                    line_item["StorageLocationFrom"] = item.get("storageLocationFrom")
+                if item.get("storage_location_from_id"):
+                    line_item["StorageLocationFrom"] = item.get("storage_location_from_id")
                     
-                if item.get("storageLocationTo"):
-                    line_item["StorageLocationTo"] = item.get("storageLocationTo")
+                if item.get("storage_location_to_id"):
+                    line_item["StorageLocationTo"] = item.get("storage_location_to_id")
                     
                 if item.get("description"):
                     line_item["Description"] = item.get("description")
