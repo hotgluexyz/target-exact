@@ -135,6 +135,10 @@ class ExactSink(HotglueSink):
             try:
                 res_json = xmltodict.parse(response.text)
                 msg = res_json["error"]["message"]["#text"]
+                # Retry on 500 errors that are internal server errors
+                if "A problem has occurred. The cause of this issue will be investigated as soon as possible." in msg and response.status_code == 500:
+                    raise RetriableAPIError(msg)
+                
                 msg = {"error": msg , "url": response.url, "status code": response.status_code}
                 self.logger.error({"error": f"{msg} in url {response.url} with status code {response.status_code}"})
             except:
