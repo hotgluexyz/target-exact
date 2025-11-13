@@ -130,6 +130,14 @@ class SuppliersSink(ExactSink):
             if record.get("division") and not self.current_division:
                 self.endpoint = f"{record.get('division')}/{self.endpoint}"
 
+            if not record.get("id"):
+                if record.get("vendorCode"):
+                    id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('vendorCode')}'"})
+                if not id and record.get("vendorName"):
+                    id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('vendorName')}'"})
+                if id:
+                    record["id"] = id
+
             payload = {
                 "Name": record.get("vendorName"),
                 "Code": record.get("vendorCode"),
