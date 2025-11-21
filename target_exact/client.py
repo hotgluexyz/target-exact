@@ -201,6 +201,12 @@ class ExactSink(HotglueSink):
         except:
             return ast.literal_eval(obj)
     
+    def escape_odata_string(self, value: Optional[str]) -> str:
+        """Escape single quotes in OData string literals by doubling them."""
+        if value is None:
+            return ''
+        return str(value).replace("'", "''")
+    
     def get_id(self, endpoint, filter, key="ID"):
         res = self.request_api("GET", endpoint=f"{endpoint}", params=filter)
         res_json = xmltodict.parse(res.text)
