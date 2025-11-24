@@ -3,6 +3,7 @@
 
 import ast
 import base64
+from singer_sdk.exceptions import FatalAPIError
 import xmltodict
 import json
 import datetime
@@ -129,12 +130,23 @@ class SuppliersSink(ExactSink):
         try:
             if record.get("division") and not self.current_division:
                 self.endpoint = f"{record.get('division')}/{self.endpoint}"
+                
+            # make sure the record still exists, if not, create new record
+            if record.get("id"):
+                try:
+                    self.request_api("GET", endpoint=f"{self.endpoint}(guid'{record['id']}')")
+                except FatalAPIError as er:
+                    if "Resource not found" in str(er):
+                        self.logger.error(f"Supplier {record.get('id')} not found, gonna create new one")
+                        record.pop("id")
+                    else:
+                        raise er
 
             if not record.get("id"):
                 if record.get("vendorCode"):
                     id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('vendorCode')}'"})
                 if not id and record.get("vendorName"):
-                    id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('vendorName')}'"})
+                    id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{self.escape_odata_string(record.get('vendorName'))}'"})
                 if id:
                     record["id"] = id
 
@@ -207,7 +219,7 @@ class SuppliersSink(ExactSink):
                 for bankAccount in bankAccounts: # how not to send dupplicated bank accounts
                     bank_account = bankAccount.get("accountNumber")
                     # check if bankAccount already exists
-                    bank_accounts_endpoint = f"/crm/BankAccounts?$filter=BankAccount eq '{bank_account}' and Account eq '{id}'"
+                    bank_accounts_endpoint = f"/crm/BankAccounts?$filter=BankAccount eq '{self.escape_odata_string(bank_account)}' and Account eq '{id}'"
                     bank_acct = self.request_api("GET", endpoint=bank_accounts_endpoint)
 
                     if not bank_acct:
@@ -347,7 +359,7 @@ class PurchaseInvoicesSink(ExactSink):
             if journal_code:
                 payload.update({"Journal":journal_code})
             supplier_endpoint = (
-                f"/crm/Accounts?$filter=Name eq '{record.get('supplierName')}'"
+                f"/crm/Accounts?$filter=Name eq '{self.escape_odata_string(record.get('supplierName'))}'"
             )
             supplier = self.request_api("GET", endpoint=supplier_endpoint)
             supplier_json = xmltodict.parse(supplier.text)
@@ -382,7 +394,7 @@ class PurchaseInvoicesSink(ExactSink):
                             invoice_line.update({"VATAmount": line.get("taxAmount")})    
 
 
-                        product_endpoint = f"/logistics/Items?$filter=Description eq '{line.get('productName')}'"
+                        product_endpoint = f"/logistics/Items?$filter=Description eq '{self.escape_odata_string(line.get('productName'))}'"
                         product = self.request_api("GET", endpoint=product_endpoint)
                         product_json = xmltodict.parse(product.text)
                         products = product_json["feed"].get("entry")
@@ -542,7 +554,7 @@ class PurchaseEntriesSink(ExactSink):
             if record.get('supplierCode'):
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
             if not supplier_id:
-                supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{record.get('supplierName')}'"})
+                supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{self.escape_odata_string(record.get('supplierName'))}'"})
             if supplier_id:
                 payload["Supplier"] = supplier_id
             else:
@@ -560,7 +572,7 @@ class PurchaseEntriesSink(ExactSink):
                         if line.get("accountNumber"):
                             account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Code eq '{line.get('accountNumber')}'"})
                         if not account_id:
-                            account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{line.get('accountName')}'"})
+                            account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{self.escape_odata_string(line.get('accountName'))}'"})
                         if not account_id:
                             return {"error": f"Unable to send PurchaseEntry as GL account {line.get('accountName')} doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
                         # flag added because new tenants are sending exact taxCode but older tenants are sending tax name as taxCode
@@ -580,7 +592,7 @@ class PurchaseEntriesSink(ExactSink):
 
                         # optional fields
                         if line.get('projectName'):
-                            project_id = self.get_id("/project/Projects", {"$filter": f"Description eq '{line.get('projectName')}'"})
+                            project_id = self.get_id("/project/Projects", {"$filter": f"Description eq '{self.escape_odata_string(line.get('projectName'))}'"})
                             if project_id:
                                 invoice_line["Project"] = project_id
                         invoice_lines.append(invoice_line)
@@ -641,4 +653,3 @@ class PurchaseEntriesSink(ExactSink):
                 id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
-
