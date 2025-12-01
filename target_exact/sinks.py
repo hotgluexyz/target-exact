@@ -548,7 +548,7 @@ class PurchaseEntriesSink(ExactSink):
             else:
                 return {"error": f"Unable to send PurchaseEntry as Supplier '{record.get('supplierName')}' doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
 
-            lookup_taxes = self.config.get("lookup_taxes") if self.config.get("lookup_taxes") == False else True
+            lookup_taxes = self.config.get("lookup_taxes_by_name") or False
             invoice_lines = []
             lines = record.get("journalLines")
             if lines and isinstance(lines, str):
