@@ -551,7 +551,12 @@ class PurchaseEntriesSink(ExactSink):
             }
             #get supplier id
             supplier_id = None
-            if record.get('supplierCode'):
+            
+            # if provided supplierId - verify that supplier with this ID exists
+            if supplierId := record.get("supplierId"):
+                supplier_id = self.get_id("/crm/Accounts", {"$filter": f"ID eq guid'{supplierId}'"})
+                
+            if record.get('supplierCode') and not supplier_id:
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
             if not supplier_id:
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{self.escape_odata_string(record.get('supplierName'))}'"})
