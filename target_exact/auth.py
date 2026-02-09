@@ -1,7 +1,5 @@
 import json
 from datetime import datetime
-from typing import Optional
-from base64 import b64encode
 from typing import Any, Dict, Optional
 
 import logging
@@ -79,7 +77,7 @@ class ExactAuthenticator:
                 == "Rate limit exceeded: access_token not expired"
             ):
                 return None
-        except Exception as e:
+        except:
             raise Exception(f"Failed converting response to a json, OAuth response: {token_response.text}")
 
         try:

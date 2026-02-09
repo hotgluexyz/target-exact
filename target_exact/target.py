@@ -12,8 +12,8 @@ from target_exact.sinks import (
 )
 
 from target_hotglue.target import TargetHotglue
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
-from pathlib import Path, PurePath
+from typing import List, Optional, Union
+from pathlib import PurePath
 
 
 

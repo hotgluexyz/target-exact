@@ -5,7 +5,6 @@ import ast
 import base64
 import xmltodict
 import json
-import datetime
 from pendulum import parse
 
 from target_exact.client import ExactSink
@@ -24,56 +23,41 @@ class BuyOrdersSink(ExactSink):
     endpoint = "/purchaseorder/PurchaseOrders"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        PurchaseOrderLines = []
+        if "line_items" not in record:
+            return None
 
         receipt_date = record.get("created_at")
+        if receipt_date:
+            receipt_date = parse(receipt_date) if isinstance(receipt_date, str) else receipt_date
+            receipt_date = receipt_date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
         payload = {
-            "OrderDate": record.get("transaction_date").strftime(
-                "%Y-%m-%dT%H:%M:%S.%fZ"
-            ),
+            "OrderDate": record.get("transaction_date").strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "Supplier": record.get("supplier_remoteId"),
-            "PurchaseOrderLines": PurchaseOrderLines,
+            "PurchaseOrderLines": [],
             "buy_order_remoteId": record.get("remoteId"),
         }
-
-        if "id" in record:
-            payload["OrderNumber"] = record.get("id")
-
-        if "reference" in record:
-            payload["YourRef"] = record.get("reference")
-
+        if record.get("id") is not None:
+            payload["OrderNumber"] = record["id"]
+        if record.get("reference") is not None:
+            payload["YourRef"] = record["reference"]
         if receipt_date:
-            if isinstance(receipt_date, str):
-                receipt_date = parse(receipt_date)
-
-            receipt_date = receipt_date.strftime(
-                            "%Y-%m-%dT%H:%M:%S.%fZ"
-                        )
             payload["ReceiptDate"] = receipt_date
 
-        if "line_items" in record:
-            record["line_items"] = json.loads(record["line_items"])
-            for item in record["line_items"]:
-                line_item = {}
-                line_item["Item"] = item.get("product_remoteId")
-                if not item.get("lot_size") or item.get("lot_size") == False:
-                    item["lot_size"] = 1
-                line_item["QuantityInPurchaseUnits"] = item.get("quantity") / item.get("lot_size", 1)
+        line_items = json.loads(record["line_items"])
+        for item in line_items:
+            lot_size = item.get("lot_size") or 1
+            qty = item.get("quantity") / lot_size
+            line_item = {
+                "Item": item.get("product_remoteId"),
+                "QuantityInPurchaseUnits": qty,
+                "ReceiptDate": item.get("receipt_date") or receipt_date
+            }
+            if item.get("sub_total_price"):
+                line_item["UnitPrice"] = item["sub_total_price"] / qty
+            payload["PurchaseOrderLines"].append(line_item)
 
-                if item.get("sub_total_price"):
-                    line_item["UnitPrice"] = item.get("sub_total_price") / line_item["QuantityInPurchaseUnits"]
-
-                if item.get("receipt_date"):
-                    line_item["ReceiptDate"] = item.get("receipt_date")
-                elif receipt_date:
-                    line_item["ReceiptDate"] = receipt_date
-
-                PurchaseOrderLines.append(line_item)
-
-            return payload
-        else:
-            return None
+        return payload
 
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
@@ -434,14 +418,22 @@ class SalesOrdersSink(ExactSink):
                 
                 item_id = None
                 item_endpoint = "/logistics/Items"
-                if product_id := item.get("product_id"):
-                    item_id = self.get_id(item_endpoint, {"$filter": f"ID eq guid'{product_id}'"})
-                if not item_id:
-                    item_id = self.get_id(item_endpoint, {"$filter": f"Code eq '{item.get('sku')}'"})
-                if not item_id:
-                    item_id = self.get_id(item_endpoint, {"$filter": f"Code eq '{item.get('product_name')}'"})
-                if not item_id:
-                    item_id = self.get_id(item_endpoint, {"$filter": f"Description eq '{item.get('product_name')}'"})
+
+                product_id_filters = [
+                    {"$filter": f"Code eq '{item.get('sku')}'"},
+                    {"$filter": f"Code eq '{item.get('product_name')}'"},
+                    {"$filter": f"Description eq '{item.get('product_name')}'"},
+                ]
+
+                product_id = item.get("product_id")
+                if product_id:
+                    product_id_filters.insert(0, {"$filter": f"ID eq guid'{product_id}'"})
+
+                item_id = None
+                for filter in product_id_filters:
+                    if item_id := self.get_id(item_endpoint, filter):
+                        break
+                
                 if not item_id:
                     raise MissingItemError(f"Item not found for SKU {item.get('sku')} and Name {item.get('product_name')}. " + \
                                     f"OrderID {order_id} and OrderNumber {record.get('order_number')}.")
@@ -458,7 +450,6 @@ class SalesOrdersSink(ExactSink):
                 if item.get("discount_amount"):
                     order_line["Discount"] = item.get("discount_amount")/item.get("unit_price")
                 order_lines.append(order_line)
-            
 
             payload = {
                 "YourRef": order_id,
