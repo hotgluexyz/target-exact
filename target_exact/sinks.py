@@ -143,6 +143,7 @@ class SuppliersSink(ExactSink):
                         raise er
 
             if not record.get("id"):
+                id = None
                 if record.get("vendorCode"):
                     id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('vendorCode')}'"})
                 if not id and record.get("vendorName"):
