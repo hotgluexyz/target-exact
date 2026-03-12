@@ -143,6 +143,7 @@ class SuppliersSink(ExactSink):
                         raise er
 
             if not record.get("id"):
+                id = None
                 if record.get("vendorCode"):
                     id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('vendorCode')}'"})
                 if not id and record.get("vendorName"):
@@ -555,7 +556,7 @@ class PurchaseEntriesSink(ExactSink):
             # if provided supplierId - verify that supplier with this ID exists
             if supplierId := record.get("supplierId"):
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"ID eq guid'{supplierId}'"})
-                
+            
             if record.get('supplierCode') and not supplier_id:
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
             if not supplier_id:
@@ -574,7 +575,11 @@ class PurchaseEntriesSink(ExactSink):
                     for line in lines:
                         #get gl account id
                         account_id = None
-                        if line.get("accountNumber"):
+                        
+                        # if provided accountId - verify that account with this ID exists
+                        if accountId := record.get("accountId"):
+                            account_id = self.get_id("/financial/GLAccounts", {"$filter": f"ID eq guid'{accountId}'"})
+                        if line.get("accountNumber") and not account_id:
                             account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Code eq '{line.get('accountNumber')}'"})
                         if not account_id:
                             account_id = self.get_id("/financial/GLAccounts", {"$filter": f"Description eq '{self.escape_odata_string(line.get('accountName'))}'"})
