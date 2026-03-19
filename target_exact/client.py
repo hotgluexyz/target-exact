@@ -3,7 +3,6 @@ import json
 from datetime import datetime
 from hotglue_singer_sdk.plugin_base import PluginBase
 from typing import Dict, List, Optional
-from target_exact.auth import ExactAuthenticator
 import backoff
 import requests
 from hotglue_singer_sdk.exceptions import FatalAPIError, RetriableAPIError
