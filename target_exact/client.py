@@ -46,7 +46,7 @@ class ExactSink(HotglueSink):
     @property
     def authenticator(self):
         authenticator, auth_endpoint = self._target.access_token_support(self._target)
-        return authenticator(self, self.config, auth_endpoint=auth_endpoint)
+        return authenticator(self._target, self.auth_state, auth_endpoint)
     
     @property
     def default_warehouse_uuid(self) -> str:

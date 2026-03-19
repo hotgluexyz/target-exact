@@ -28,7 +28,6 @@ class ExactAuthenticator(OAuthAuthenticator):
         self._auth_params: Dict[str, Any] = {}
         self.logger: logging.Logger = target.logger
         self._auth_endpoint = auth_endpoint
-        self._config_file = target.config_file
         self._target = target
         self.state = state
 
@@ -43,7 +42,7 @@ class ExactAuthenticator(OAuthAuthenticator):
         }
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=3)
-    def update_access_token_locally(self) -> None:
+    def _update_access_token_locally(self) -> None:
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         self.logger.info(f"Oauth request - endpoint: {self._auth_endpoint}, body: {self.oauth_request_body}")
         token_response = requests.post(
