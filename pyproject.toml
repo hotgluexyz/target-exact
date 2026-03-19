@@ -12,8 +12,7 @@ license = "Apache 2.0"
 [tool.poetry.dependencies]
 python = "<3.11,>=3.7.1"
 requests = "2.25.1"
-singer-sdk = "^0.9.0"
-target-hotglue = "^0.0.3"
+hotglue-singer-sdk = {git = "https://github.com/hotgluexyz/HotglueSingerSDK.git", branch = "hgi-9976"}
 xmltodict="0.13.0"
 
 [tool.poetry.dev-dependencies]
