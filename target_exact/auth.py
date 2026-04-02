@@ -1,13 +1,14 @@
 import json
 from datetime import datetime
 from typing import Any, Dict, Optional
+from hotglue_singer_sdk.target_sdk.auth import OAuthAuthenticator
 
 import logging
 import requests
 import backoff
 
 
-class ExactAuthenticator:
+class ExactAuthenticator(OAuthAuthenticator):
     """API Authenticator for OAuth 2.0 flows."""
 
     def __init__(
@@ -27,17 +28,8 @@ class ExactAuthenticator:
         self._auth_params: Dict[str, Any] = {}
         self.logger: logging.Logger = target.logger
         self._auth_endpoint = auth_endpoint
-        self._config_file = target.config_file
         self._target = target
         self.state = state
-
-    @property
-    def auth_headers(self) -> dict:
-        if not self.is_token_valid():
-            self.update_access_token()
-        result = {}
-        result["Authorization"] = f"Bearer {self._config.get('access_token')}"
-        return result
 
     @property
     def oauth_request_body(self) -> dict:
@@ -49,22 +41,8 @@ class ExactAuthenticator:
             "client_secret": self._config["client_secret"],
         }
 
-    def is_token_valid(self) -> bool:
-        access_token = self._config.get("access_token")
-        now = round(datetime.utcnow().timestamp())
-        expires_in = self._config.get("expires_in")
-        if  expires_in is not None:
-            expires_in = int(expires_in)
-        if not access_token:
-            return False
-
-        if not expires_in:
-            return False
-
-        return not ((expires_in - now) < 120)
-
     @backoff.on_exception(backoff.expo, Exception, max_tries=3)
-    def update_access_token(self) -> None:
+    def _update_access_token_locally(self) -> None:
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         self.logger.info(f"Oauth request - endpoint: {self._auth_endpoint}, body: {self.oauth_request_body}")
         token_response = requests.post(

@@ -1,12 +1,11 @@
-from target_hotglue.client import HotglueSink
+from hotglue_singer_sdk.target_sdk.client import HotglueSink
 import json
 from datetime import datetime
-from singer_sdk.plugin_base import PluginBase
+from hotglue_singer_sdk.plugin_base import PluginBase
 from typing import Dict, List, Optional
-from target_exact.auth import ExactAuthenticator
 import backoff
 import requests
-from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
+from hotglue_singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 import xmltodict
 import re
 import ast
@@ -46,14 +45,8 @@ class ExactSink(HotglueSink):
     
     @property
     def authenticator(self):
-        oauth_url = self.config.get("auth_url", self.config.get("uri")) or "https://start.exactonline.nl/api/oauth2/token"
-        if "token" not in oauth_url:
-            oauth_url = f"{oauth_url}/api/oauth2/token"
-        if not oauth_url.endswith("/token"):
-            oauth_url += "/token"
-        return ExactAuthenticator(
-            self._target, self.auth_state, oauth_url
-        )
+        authenticator, auth_endpoint = self._target.access_token_support(self._target)
+        return authenticator(self._target, self.auth_state, auth_endpoint)
     
     @property
     def default_warehouse_uuid(self) -> str:
