@@ -388,6 +388,10 @@ class PurchaseInvoicesSink(ExactSink):
                             "Quantity": line.get("quantity"),
                             "Amount": line.get("totalPrice"),
                         }
+                        discount = line.get("discount")
+                        if discount is not None:
+                            invoice_line.update({"Discount": discount})
+
                         if line.get("taxCode"):
                             invoice_line.update({"VATCode": line.get("taxCode")})
 
