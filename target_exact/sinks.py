@@ -592,10 +592,18 @@ class PurchaseEntriesSink(ExactSink):
             if supplierId := record.get("supplierId"):
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"ID eq guid'{supplierId}'"})
             
-            if record.get('supplierCode') and not supplier_id:
-                supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
+            if record.get("supplierCode") and not supplier_id:
+                supplier_code = str(record.get("supplierCode"))
+                # Exact stores Account Code as fixed-length (18) with leading spaces.
+                normalized_code = supplier_code.rjust(18)
+                supplier_id = self.get_id(
+                    "/crm/Accounts",
+                    {"$filter": f"Code eq '{self.escape_odata_string(normalized_code)}'"},
+                )
+
             if not supplier_id:
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{self.escape_odata_string(record.get('supplierName'))}'"})
+            
             if supplier_id:
                 payload["Supplier"] = supplier_id
             else:
