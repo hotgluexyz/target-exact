@@ -601,7 +601,7 @@ class PurchaseEntriesSink(ExactSink):
                 return {"error": f"Unable to send PurchaseEntry as Supplier '{record.get('supplierName')}' doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
 
             # Update only when both invoice reference and supplier match an existing entry.
-            if not payload.get("Id") and record.get("invoiceNumber"):
+            if not payload.get("Id") and record.get("invoiceNumber") and supplier_id:
                 existing_entry_id = self._find_existing_purchase_entry_id(
                     record.get("invoiceNumber"), supplier_id
                 )
