@@ -470,20 +470,11 @@ class PurchaseEntriesSink(ExactSink):
         }
         response = self.request_api("GET", endpoint=self.endpoint, params=params)
         response_json = xmltodict.parse(response.text)
-        entries = response_json.get("feed", {}).get("entry") or response_json.get("entry")
+        entries = response_json.get("feed", {}).get("entry")
         if not entries:
             return None
-        if isinstance(entries, dict):
-            entries = [entries]
+        return entries["content"]["m:properties"]["d:EntryID"]["#text"]
 
-        if len(entries) > 1:
-            self.logger.warning(
-                "Multiple purchase entries found for YourRef '%s' and supplier '%s'; using the most recent match.",
-                invoice_number,
-                supplier_id,
-            )
-
-        return entries[0]["content"]["m:properties"]["d:EntryID"]["#text"]
 
     def _create_document(self, record_id=None):
         # check if document has already been created for the Entry
