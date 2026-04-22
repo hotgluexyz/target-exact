@@ -454,6 +454,28 @@ class PurchaseEntriesSink(ExactSink):
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
 
+    def _find_existing_purchase_entry_id(self, invoice_number: str, supplier_id: str):
+        """Return existing EntryID for the same YourRef+Supplier pair."""
+        if not invoice_number or not supplier_id:
+            return None
+
+        params = {
+            "$filter": (
+                f"YourRef eq '{self.escape_odata_string(invoice_number)}' "
+                f"and Supplier eq guid'{supplier_id}'"
+            ),
+            "$select": "EntryID,Modified",
+            "$top": 1,
+            "$orderby": "Modified desc",
+        }
+        response = self.request_api("GET", endpoint=self.endpoint, params=params)
+        response_json = xmltodict.parse(response.text)
+        entries = response_json.get("feed", {}).get("entry")
+        if not entries:
+            return None
+        return entries["content"]["m:properties"]["d:EntryID"]["#text"]
+
+
     def _create_document(self, record_id=None):
         # check if document has already been created for the Entry
         if record_id:
@@ -561,14 +583,36 @@ class PurchaseEntriesSink(ExactSink):
             if supplierId := record.get("supplierId"):
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"ID eq guid'{supplierId}'"})
             
-            if record.get('supplierCode') and not supplier_id:
-                supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Code eq '{record.get('supplierCode')}'"})
+            if record.get("supplierCode") and not supplier_id:
+                supplier_code = str(record.get("supplierCode"))
+                # Exact stores Account Code as fixed-length (18) with leading spaces.
+                normalized_code = supplier_code.rjust(18)
+                supplier_id = self.get_id(
+                    "/crm/Accounts",
+                    {"$filter": f"Code eq '{self.escape_odata_string(normalized_code)}'"},
+                )
+
             if not supplier_id:
                 supplier_id = self.get_id("/crm/Accounts", {"$filter": f"Name eq '{self.escape_odata_string(record.get('supplierName'))}'"})
+            
             if supplier_id:
                 payload["Supplier"] = supplier_id
             else:
                 return {"error": f"Unable to send PurchaseEntry as Supplier '{record.get('supplierName')}' doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
+
+            # Update only when both invoice reference and supplier match an existing entry.
+            if not payload.get("Id") and record.get("invoiceNumber") and supplier_id:
+                existing_entry_id = self._find_existing_purchase_entry_id(
+                    record.get("invoiceNumber"), supplier_id
+                )
+                if existing_entry_id:
+                    self.logger.info(
+                        "Found existing purchase entry '%s' for invoiceNumber '%s' and supplier '%s'.",
+                        existing_entry_id,
+                        record.get("invoiceNumber"),
+                        supplier_id,
+                    )
+                    payload["Id"] = existing_entry_id
 
             lookup_taxes = self.config.get("lookup_taxes_by_name") or False
             invoice_lines = []

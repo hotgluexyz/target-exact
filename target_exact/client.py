@@ -41,7 +41,7 @@ class ExactSink(HotglueSink):
         elif "api" not in url:
             url = f"{url}/api"
 
-        base_url = f"{url}/v1/"
+        base_url = f"{url}/v1"
         if self.current_division:
             return f"{base_url}/{self.current_division}"
         return base_url
