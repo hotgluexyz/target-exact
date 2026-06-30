@@ -3,10 +3,14 @@
 
 import ast
 import base64
+import csv
+import os
 import xmltodict
 import json
+from datetime import datetime, timezone
 from pendulum import parse
 
+from hotglue_singer_sdk.exceptions import FatalAPIError
 from target_exact.client import ExactSink
 from target_exact.constants import SALES_ORDER_STATUS, countries
 from target_exact.exceptions import (
@@ -14,6 +18,57 @@ from target_exact.exceptions import (
     MissingItemError,
     InvalidOrderedByError,
 )
+
+_PERMANENT_ERROR_PATTERNS = [
+    "period is closed",
+    "accounting period",
+    "glaccount",
+    "gl account",
+    "vat",
+    "btw",
+    "dimension",
+    "cost center",
+    "costcenter",
+    "journal does not exist",
+    "yourref already exists",
+    "supplier",
+    "currency is not valid",
+]
+
+
+def _is_permanent_error(msg: str) -> bool:
+    lower = msg.lower()
+    return any(p in lower for p in _PERMANENT_ERROR_PATTERNS)
+
+
+def _write_quarantine(snapshot_dir: str, precoro_id: str, error_reason: str) -> None:
+    os.makedirs(snapshot_dir, exist_ok=True)
+    path = os.path.join(snapshot_dir, "exact_quarantine.csv")
+    fieldnames = ["precoro_id", "error_category", "error_reason", "first_quarantined", "last_failed"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    rows = {}
+    if os.path.exists(path):
+        with open(path, newline="") as f:
+            for row in csv.DictReader(f):
+                rows[row["precoro_id"]] = row
+
+    if precoro_id in rows:
+        rows[precoro_id]["last_failed"] = now
+        rows[precoro_id]["error_reason"] = error_reason
+    else:
+        rows[precoro_id] = {
+            "precoro_id": precoro_id,
+            "error_category": "permanent",
+            "error_reason": error_reason,
+            "first_quarantined": now,
+            "last_failed": now,
+        }
+
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerows(rows.values())
 
 
 class BuyOrdersSink(ExactSink):
@@ -269,7 +324,9 @@ class PurchaseInvoicesSink(ExactSink):
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
-        if record:
+        if not record:
+            return None, False, state_updates
+        try:
             response = self.request_api(
                 "POST", endpoint=self.endpoint, request_data=record
             )
@@ -277,6 +334,15 @@ class PurchaseInvoicesSink(ExactSink):
             id = res_json["entry"]["content"]["m:properties"]["d:ID"]["#text"]
             self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
+        except FatalAPIError as exc:
+            msg = str(exc)
+            if _is_permanent_error(msg):
+                precoro_id = str(record.get("externalId") or record.get("YourRef", "unknown"))
+                snapshot_dir = os.path.join(os.environ.get("ROOT_DIR", "."), "snapshots")
+                _write_quarantine(snapshot_dir, precoro_id, msg)
+                self.logger.warning(f"Quarantined invoice {precoro_id}: {msg}")
+                return None, False, state_updates
+            raise
 
 
 class PurchaseEntriesSink(ExactSink):
@@ -380,7 +446,9 @@ class PurchaseEntriesSink(ExactSink):
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
-        if record:
+        if not record:
+            return None, False, state_updates
+        try:
             response = self.request_api(
                 "POST", endpoint=self.endpoint, request_data=record
             )
@@ -388,6 +456,15 @@ class PurchaseEntriesSink(ExactSink):
             id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
             self.logger.info(f"{self.name} created with id: {id}")
             return id, True, state_updates
+        except FatalAPIError as exc:
+            msg = str(exc)
+            if _is_permanent_error(msg):
+                precoro_id = str(record.get("externalId") or record.get("YourRef", "unknown"))
+                snapshot_dir = os.path.join(os.environ.get("ROOT_DIR", "."), "snapshots")
+                _write_quarantine(snapshot_dir, precoro_id, msg)
+                self.logger.warning(f"Quarantined invoice {precoro_id}: {msg}")
+                return None, False, state_updates
+            raise
 
 
 class SalesOrdersSink(ExactSink):
