@@ -3,6 +3,7 @@
 
 import ast
 import base64
+import os
 import xmltodict
 import json
 from pendulum import parse
@@ -314,7 +315,9 @@ class PurchaseEntriesSink(ExactSink):
             self.logger.info(f"Attachment {attachment_name} is not a PDF file")
             return None
 
-        with open(f"{input_path}{attachment_name}", "rb") as f:
+        file_name = attachment_name.replace("/", "_").replace("\\", "_")
+        file_path = os.path.join(input_path, file_name)
+        with open(file_path, "rb") as f:
             attachment = f.read()
             attachment = base64.b64encode(attachment)
 
