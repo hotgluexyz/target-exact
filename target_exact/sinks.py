@@ -454,30 +454,10 @@ class PurchaseEntriesSink(ExactSink):
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
 
-    @property
-    def _entry_id_cache(self) -> dict:
-        # Exact's $filter search index lags behind writes by a second or so, so a
-        # lookup run right after we create an entry can miss it and create a
-        # duplicate instead of updating it (confirmed live: create then correct
-        # within the same run raced the index and fell through to a second
-        # create). Remembering IDs we already created/updated this run sidesteps
-        # the index entirely for that case. Records created in a previous run
-        # still go through the normal network lookup below, unchanged.
-        if not hasattr(self, "_entry_id_cache_store"):
-            self._entry_id_cache_store = {}
-        return self._entry_id_cache_store
-
     def _find_existing_purchase_entry_id(self, invoice_number: str, supplier_id: str):
         """Return existing EntryID for the same YourRef+Supplier pair."""
         if not invoice_number or not supplier_id:
             return None
-
-        # Exact silently truncates YourRef to 30 chars on write (confirmed live:
-        # a 32-char invoiceNumber was stored as exactly its first 30 chars, no
-        # error). Searching with the untruncated string never matches what's
-        # actually stored, so every update attempt for a long invoiceNumber would
-        # permanently fall through to creating a duplicate entry instead.
-        invoice_number = invoice_number[:30]
 
         params = {
             "$filter": (
@@ -622,12 +602,9 @@ class PurchaseEntriesSink(ExactSink):
 
             # Update only when both invoice reference and supplier match an existing entry.
             if not payload.get("Id") and record.get("invoiceNumber") and supplier_id:
-                cache_key = (record.get("invoiceNumber"), supplier_id)
-                existing_entry_id = self._entry_id_cache.get(cache_key)
-                if not existing_entry_id:
-                    existing_entry_id = self._find_existing_purchase_entry_id(
-                        record.get("invoiceNumber"), supplier_id
-                    )
+                existing_entry_id = self._find_existing_purchase_entry_id(
+                    record.get("invoiceNumber"), supplier_id
+                )
                 if existing_entry_id:
                     self.logger.info(
                         "Found existing purchase entry '%s' for invoiceNumber '%s' and supplier '%s'.",
@@ -824,10 +801,6 @@ class PurchaseEntriesSink(ExactSink):
                         f"Received empty PurchaseEntryLines for PurchaseEntry {id} update; "
                         "Exact does not allow zero lines, keeping existing lines unchanged."
                     )
-
-            cache_key = (record.get("YourRef"), record.get("Supplier"))
-            if cache_key[0] and cache_key[1]:
-                self._entry_id_cache[cache_key] = id
 
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates

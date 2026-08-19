@@ -43,11 +43,6 @@ def created_entry(id_):
     return {"entry": {"content": {"m:properties": {"d:ID": {"#text": id_}}}}}
 
 
-def created_purchase_entry(id_):
-    """Mimic xmltodict output for a POST creating a PurchaseEntry header (EntryID, not ID)."""
-    return {"entry": {"content": {"m:properties": {"d:EntryID": {"#text": id_}}}}}
-
-
 class TestGetExistingLineIds:
     def test_empty_feed_returns_empty_list(self):
         sink = make_sink([FakeResponse(200, "<feed/>")])
@@ -69,35 +64,6 @@ class TestGetExistingLineIds:
             return_value=entry_ids_feed(["line-a", "line-b"]),
         ):
             assert sink._get_existing_line_ids("entry-1") == ["line-a", "line-b"]
-
-
-class TestFindExistingPurchaseEntryId:
-    """Guards against a real bug found testing on a dev tenant: Exact silently
-    truncates YourRef to 30 chars on write. Searching with the untruncated
-    invoiceNumber never matches what's actually stored, so every update
-    attempt for a long invoiceNumber permanently falls through to creating a
-    duplicate entry - not a one-off race, a standing mismatch.
-    """
-
-    def test_truncates_long_invoice_number_before_searching(self):
-        sink = make_sink([FakeResponse(200)])
-        long_invoice_number = "DEVFIX-008-UPDATE-NO-LINES-FIELD"  # 32 chars
-        # {"feed": {}} - confirmed live: a real "no match" response from this
-        # endpoint parses without crashing, unlike PurchaseEntryLines' {"feed": None}.
-        with patch("target_exact.sinks.xmltodict.parse", return_value={"feed": {}}):
-            sink._find_existing_purchase_entry_id(long_invoice_number, "supplier-1")
-
-        params = sink.request_api.call_args.kwargs["params"]
-        assert "DEVFIX-008-UPDATE-NO-LINES-FIE'" in params["$filter"]
-        assert long_invoice_number not in params["$filter"]
-
-    def test_leaves_short_invoice_number_unchanged(self):
-        sink = make_sink([FakeResponse(200)])
-        with patch("target_exact.sinks.xmltodict.parse", return_value={"feed": {}}):
-            sink._find_existing_purchase_entry_id("DEVFIX-001-CREATE-SIMPLE", "supplier-1")
-
-        params = sink.request_api.call_args.kwargs["params"]
-        assert "DEVFIX-001-CREATE-SIMPLE'" in params["$filter"]
 
 
 class TestReplacePurchaseEntryLines:
@@ -234,67 +200,3 @@ class TestUpsertRecordEmptyNewLines:
         methods = [c.args[0] for c in sink.request_api.call_args_list]
         assert methods == ["PUT", "GET", "POST", "DELETE"]
         sink.logger.warning.assert_not_called()
-
-
-class TestEntryIdCache:
-    """Guards against the race found testing on a real dev tenant: Exact's
-    $filter search index lags behind writes, so creating an entry and then
-    immediately correcting it in the same run can have the lookup miss the
-    just-created entry and fall through to a duplicate create. Caching IDs
-    we've already created/updated this run sidesteps the index for that case.
-    """
-
-    def make_full_sink(self, request_side_effect):
-        sink = PurchaseEntriesSink.__new__(PurchaseEntriesSink)
-        sink.request_api = MagicMock(side_effect=request_side_effect)
-        sink.logger = MagicMock()
-        sink.name = "PurchaseEntries"
-        sink.endpoint = "/purchaseentry/PurchaseEntries"
-        sink.get_id = MagicMock(return_value="supplier-guid-1")
-        sink._find_existing_purchase_entry_id = MagicMock(return_value="looked-up-id")
-        return sink
-
-    def test_upsert_record_caches_id_after_create(self):
-        sink = make_sink([FakeResponse(201)])
-        with patch(
-            "target_exact.sinks.xmltodict.parse",
-            return_value=created_purchase_entry("new-entry-1"),
-        ):
-            record = {"YourRef": "INV-1", "Supplier": "supplier-guid-1", "Currency": "EUR"}
-            id_, _, _ = sink.upsert_record(record, {})
-
-        assert id_ == "new-entry-1"
-        assert sink._entry_id_cache[("INV-1", "supplier-guid-1")] == "new-entry-1"
-
-    def test_upsert_record_caches_id_after_update(self):
-        sink = make_sink([FakeResponse(204)])
-        record = {"Id": "entry-1", "YourRef": "INV-1", "Supplier": "supplier-guid-1", "Currency": "EUR"}
-        id_, _, _ = sink.upsert_record(record, {})
-
-        assert id_ == "entry-1"
-        assert sink._entry_id_cache[("INV-1", "supplier-guid-1")] == "entry-1"
-
-    def test_preprocess_record_uses_cached_id_without_network_lookup(self):
-        sink = self.make_full_sink([])
-        sink._entry_id_cache[("INV-1", "supplier-guid-1")] = "cached-entry-id"
-
-        with patch.object(PurchaseEntriesSink, "config", {}):
-            payload = sink.preprocess_record(
-                {"invoiceNumber": "INV-1", "supplierName": "Acme"}, {}
-            )
-
-        assert payload["Id"] == "cached-entry-id"
-        sink._find_existing_purchase_entry_id.assert_not_called()
-
-    def test_preprocess_record_falls_back_to_network_lookup_when_uncached(self):
-        sink = self.make_full_sink([])
-
-        with patch.object(PurchaseEntriesSink, "config", {}):
-            payload = sink.preprocess_record(
-                {"invoiceNumber": "INV-1", "supplierName": "Acme"}, {}
-            )
-
-        assert payload["Id"] == "looked-up-id"
-        sink._find_existing_purchase_entry_id.assert_called_once_with(
-            "INV-1", "supplier-guid-1"
-        )
