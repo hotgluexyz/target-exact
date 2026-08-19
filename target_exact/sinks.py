@@ -454,10 +454,30 @@ class PurchaseEntriesSink(ExactSink):
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
 
+    @property
+    def _entry_id_cache(self) -> dict:
+        # Exact's $filter search index lags behind writes by a second or so, so a
+        # lookup run right after we create an entry can miss it and create a
+        # duplicate instead of updating it (confirmed live: create then correct
+        # within the same run raced the index and fell through to a second
+        # create). Remembering IDs we already created/updated this run sidesteps
+        # the index entirely for that case. Records created in a previous run
+        # still go through the normal network lookup below, unchanged.
+        if not hasattr(self, "_entry_id_cache_store"):
+            self._entry_id_cache_store = {}
+        return self._entry_id_cache_store
+
     def _find_existing_purchase_entry_id(self, invoice_number: str, supplier_id: str):
         """Return existing EntryID for the same YourRef+Supplier pair."""
         if not invoice_number or not supplier_id:
             return None
+
+        # Exact silently truncates YourRef to 30 chars on write (confirmed live:
+        # a 32-char invoiceNumber was stored as exactly its first 30 chars, no
+        # error). Searching with the untruncated string never matches what's
+        # actually stored, so every update attempt for a long invoiceNumber would
+        # permanently fall through to creating a duplicate entry instead.
+        invoice_number = invoice_number[:30]
 
         params = {
             "$filter": (
@@ -602,9 +622,12 @@ class PurchaseEntriesSink(ExactSink):
 
             # Update only when both invoice reference and supplier match an existing entry.
             if not payload.get("Id") and record.get("invoiceNumber") and supplier_id:
-                existing_entry_id = self._find_existing_purchase_entry_id(
-                    record.get("invoiceNumber"), supplier_id
-                )
+                cache_key = (record.get("invoiceNumber"), supplier_id)
+                existing_entry_id = self._entry_id_cache.get(cache_key)
+                if not existing_entry_id:
+                    existing_entry_id = self._find_existing_purchase_entry_id(
+                        record.get("invoiceNumber"), supplier_id
+                    )
                 if existing_entry_id:
                     self.logger.info(
                         "Found existing purchase entry '%s' for invoiceNumber '%s' and supplier '%s'.",
@@ -668,6 +691,80 @@ class PurchaseEntriesSink(ExactSink):
         except Exception as e:
             return {"error": str(e)}
 
+    def _get_existing_line_ids(self, entry_id: str) -> list:
+        """Return the IDs of the PurchaseEntryLines currently attached to a PurchaseEntry."""
+        response = self.request_api(
+            "GET",
+            endpoint="/purchaseentry/PurchaseEntryLines",
+            params={"$filter": f"EntryID eq guid'{entry_id}'", "$select": "ID"},
+        )
+        response_json = xmltodict.parse(response.text)
+        # an empty result parses as {"feed": None} (the "feed" key is present but its
+        # value isn't a dict), so .get("feed", {}) alone doesn't protect against it
+        entries = (response_json.get("feed") or {}).get("entry")
+        if not entries:
+            return []
+        if isinstance(entries, dict):
+            entries = [entries]
+        return [entry["content"]["m:properties"]["d:ID"]["#text"] for entry in entries]
+
+    def _replace_purchase_entry_lines(self, entry_id: str, new_lines: list) -> list:
+        """Replace all PurchaseEntryLines for an existing PurchaseEntry.
+
+        Exact's OData API does not support replacing the nested PurchaseEntryLines
+        collection via a single PUT on the parent PurchaseEntries resource (embedding
+        lines in a header PUT either errors or duplicates lines - see commit 9994f11,
+        "fix payload for PUT purchase entries", 2024-01-02). Lines must instead be
+        deleted and recreated individually through their own endpoint.
+
+        Create the new lines BEFORE deleting the old ones. Exact rejects deleting a
+        PurchaseEntry's last remaining line with "Unexpected number of lines. Should
+        be at least one line." - confirmed live (job jvgkWM): an entry with 1 existing
+        line failed on the very first DELETE, before any new line existed to replace
+        it. Creating first means the entry always has >= 1 line at every point in
+        time, at the cost of briefly showing both old and new lines together.
+
+        Callers must never pass an empty new_lines here: with 2+ existing lines,
+        deleting them all with nothing created first hits the same "at least one
+        line" constraint partway through, leaving some old lines gone and no new
+        ones in their place. upsert_record only calls this when new_lines is
+        non-empty for that reason.
+        """
+        existing_line_ids = self._get_existing_line_ids(entry_id)
+
+        created_ids = []
+        try:
+            for line in new_lines:
+                line_payload = dict(line)
+                line_payload["EntryID"] = entry_id
+                response = self.request_api(
+                    "POST", endpoint="/purchaseentry/PurchaseEntryLines", request_data=line_payload
+                )
+                line_json = xmltodict.parse(response.text)
+                created_ids.append(line_json["entry"]["content"]["m:properties"]["d:ID"]["#text"])
+        except Exception as e:
+            raise Exception(
+                f"Failed to create new PurchaseEntryLines for entry {entry_id} "
+                f"(created {len(created_ids)}/{len(new_lines)} lines before failure - "
+                f"old lines were left untouched, entry now has {len(existing_line_ids)} old "
+                f"line(s) plus {len(created_ids)} new one(s) and needs manual review): {e}"
+            )
+
+        deleted_ids = []
+        try:
+            for line_id in existing_line_ids:
+                self.request_api(
+                    "DELETE", endpoint=f"/purchaseentry/PurchaseEntryLines(guid'{line_id}')"
+                )
+                deleted_ids.append(line_id)
+        except Exception as e:
+            raise Exception(
+                f"Created {len(created_ids)} new PurchaseEntryLines for entry {entry_id} but "
+                f"failed to delete the old ones (deleted {len(deleted_ids)}/{len(existing_line_ids)} "
+                f"before failure - entry now has BOTH old and new lines and needs manual review): {e}"
+            )
+        return created_ids
+
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
@@ -679,13 +776,16 @@ class PurchaseEntriesSink(ExactSink):
                 raise Exception(record.get("error"))
             # check if there is id to update or create the record
             id = record.pop("Id", None)
+            new_lines = record.pop("PurchaseEntryLines", None)
             if id:
                 endpoint = f"{self.endpoint}(guid'{id}')"
                 method = "PUT"
                 action = "updated"
-                record.pop("PurchaseEntryLines", None)
                 state_updates["is_updated"] = True
-            
+            elif new_lines is not None:
+                # Creating a new entry - lines are embedded in the single POST, as before.
+                record["PurchaseEntryLines"] = new_lines
+
             try:
                 response = self.request_api(
                     method, endpoint=endpoint, request_data=record
@@ -709,5 +809,25 @@ class PurchaseEntriesSink(ExactSink):
             if response.status_code == 201:
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
+
+            # Header PUT succeeded - now that we know the entry itself is valid, replace
+            # its lines. If this fails, the header change is still kept (better than
+            # silently keeping stale amounts, and it's already logged/raised below).
+            # Exact can't hold zero lines, so an empty new_lines means "no line data
+            # was sent" - skip the replace and keep the existing lines rather than
+            # wiping them out with nothing to put back (see _replace_purchase_entry_lines).
+            if method == "PUT":
+                if new_lines:
+                    self._replace_purchase_entry_lines(id, new_lines)
+                elif new_lines is not None:
+                    self.logger.warning(
+                        f"Received empty PurchaseEntryLines for PurchaseEntry {id} update; "
+                        "Exact does not allow zero lines, keeping existing lines unchanged."
+                    )
+
+            cache_key = (record.get("YourRef"), record.get("Supplier"))
+            if cache_key[0] and cache_key[1]:
+                self._entry_id_cache[cache_key] = id
+
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
