@@ -30,12 +30,22 @@ def make_sink(request_side_effect):
     return sink
 
 
-def entry_ids_feed(ids):
-    """Mimic xmltodict output for a GET on PurchaseEntryLines."""
-    if not ids:
+def entry_ids_feed(ids, link=None):
+    """Mimic xmltodict output for a GET on PurchaseEntryLines.
+
+    `link` mimics the Atom <link> element(s) xmltodict would produce - a single
+    dict when there's exactly one, a list when there's more than one (e.g. a
+    "self" link alongside a "next" pagination link).
+    """
+    if not ids and link is None:
         return {"feed": None}
     entries = [{"content": {"m:properties": {"d:ID": {"#text": i}}}} for i in ids]
-    return {"feed": {"entry": entries[0] if len(entries) == 1 else entries}}
+    feed = {}
+    if entries:
+        feed["entry"] = entries[0] if len(entries) == 1 else entries
+    if link is not None:
+        feed["link"] = link
+    return {"feed": feed}
 
 
 def created_entry(id_):
@@ -64,6 +74,78 @@ class TestGetExistingLineIds:
             return_value=entry_ids_feed(["line-a", "line-b"]),
         ):
             assert sink._get_existing_line_ids("entry-1") == ["line-a", "line-b"]
+
+    def test_follows_next_link_across_pages(self):
+        """Exact caps PurchaseEntryLines feeds at a page size; a `next` link means
+        there's another page of existing lines still to fetch. Missing it would
+        leave those lines out of the delete step in _replace_purchase_entry_lines,
+        stranding stale lines alongside the new ones."""
+        sink = make_sink([FakeResponse(200), FakeResponse(200)])
+        next_href = (
+            "https://start.exactonline.nl/api/v1/123456/purchaseentry/PurchaseEntryLines"
+            "?$filter=EntryID+eq+guid%27entry-1%27&$select=ID&$skiptoken=guid%27old-1%27"
+        )
+        with patch(
+            "target_exact.sinks.xmltodict.parse",
+            side_effect=[
+                entry_ids_feed(["old-1"], link={"@rel": "next", "@href": next_href}),
+                entry_ids_feed(["old-2"]),
+            ],
+        ):
+            ids = sink._get_existing_line_ids("entry-1")
+
+        assert ids == ["old-1", "old-2"]
+        assert sink.request_api.call_count == 2
+        calls = sink.request_api.call_args_list
+        assert calls[0].args[0] == "GET"
+        assert calls[0].kwargs["endpoint"] == "/purchaseentry/PurchaseEntryLines"
+        # the second request must be re-issued against the same relative endpoint
+        # (request_api always prepends base_url) using the params pulled out of
+        # the absolute next-page href, not the href itself
+        assert calls[1].kwargs["endpoint"] == "/purchaseentry/PurchaseEntryLines"
+        assert calls[1].kwargs["params"] == {
+            "$filter": "EntryID eq guid'entry-1'",
+            "$select": "ID",
+            "$skiptoken": "guid'old-1'",
+        }
+
+    def test_ignores_non_next_links(self):
+        """A `self` link (or any non-`next` rel) must not be mistaken for pagination."""
+        sink = make_sink([FakeResponse(200)])
+        with patch(
+            "target_exact.sinks.xmltodict.parse",
+            return_value=entry_ids_feed(
+                ["old-1"], link={"@rel": "self", "@href": "https://irrelevant/self"}
+            ),
+        ):
+            ids = sink._get_existing_line_ids("entry-1")
+
+        assert ids == ["old-1"]
+        assert sink.request_api.call_count == 1
+
+    def test_multiple_link_elements_parsed_as_list(self):
+        """Exact's real feed carries both a self and a next <link>; xmltodict parses
+        multiple same-name sibling elements as a list, not a single dict - the
+        pagination lookup must handle that shape, not just a lone next link."""
+        sink = make_sink([FakeResponse(200), FakeResponse(200)])
+        next_href = "https://irrelevant/purchaseentry/PurchaseEntryLines?$skiptoken=guid%27old-1%27"
+        with patch(
+            "target_exact.sinks.xmltodict.parse",
+            side_effect=[
+                entry_ids_feed(
+                    ["old-1"],
+                    link=[
+                        {"@rel": "self", "@href": "https://irrelevant/self"},
+                        {"@rel": "next", "@href": next_href},
+                    ],
+                ),
+                entry_ids_feed(["old-2"]),
+            ],
+        ):
+            ids = sink._get_existing_line_ids("entry-1")
+
+        assert ids == ["old-1", "old-2"]
+        assert sink.request_api.call_count == 2
 
 
 class TestReplacePurchaseEntryLines:

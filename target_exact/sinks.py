@@ -7,6 +7,7 @@ from singer_sdk.exceptions import FatalAPIError
 import xmltodict
 import json
 import datetime
+from urllib.parse import parse_qsl, urlparse
 from pendulum import parse
 
 from target_exact.client import ExactSink
@@ -670,20 +671,41 @@ class PurchaseEntriesSink(ExactSink):
 
     def _get_existing_line_ids(self, entry_id: str) -> list:
         """Return the IDs of the PurchaseEntryLines currently attached to a PurchaseEntry."""
-        response = self.request_api(
-            "GET",
-            endpoint="/purchaseentry/PurchaseEntryLines",
-            params={"$filter": f"EntryID eq guid'{entry_id}'", "$select": "ID"},
-        )
-        response_json = xmltodict.parse(response.text)
-        # an empty result parses as {"feed": None} (the "feed" key is present but its
-        # value isn't a dict), so .get("feed", {}) alone doesn't protect against it
-        entries = (response_json.get("feed") or {}).get("entry")
-        if not entries:
-            return []
-        if isinstance(entries, dict):
-            entries = [entries]
-        return [entry["content"]["m:properties"]["d:ID"]["#text"] for entry in entries]
+        ids = []
+        params = {"$filter": f"EntryID eq guid'{entry_id}'", "$select": "ID"}
+        while True:
+            response = self.request_api(
+                "GET",
+                endpoint="/purchaseentry/PurchaseEntryLines",
+                params=params,
+            )
+            response_json = xmltodict.parse(response.text)
+            # an empty result parses as {"feed": None} (the "feed" key is present but its
+            # value isn't a dict), so .get("feed", {}) alone doesn't protect against it
+            feed = response_json.get("feed") or {}
+            entries = feed.get("entry")
+            if entries:
+                if isinstance(entries, dict):
+                    entries = [entries]
+                ids.extend(entry["content"]["m:properties"]["d:ID"]["#text"] for entry in entries)
+
+            # Exact paginates PurchaseEntryLines feeds beyond its page size (60 by
+            # default) via an Atom <link rel="next" href="..."> element instead of
+            # returning everything in one response. Missing a page here means those
+            # lines never get deleted in _replace_purchase_entry_lines, leaving stale
+            # lines behind alongside the new ones.
+            links = feed.get("link") or []
+            if isinstance(links, dict):
+                links = [links]
+            next_href = next((link["@href"] for link in links if link.get("@rel") == "next"), None)
+            if not next_href:
+                break
+            # The next link is an absolute URL; request_api always prepends base_url
+            # to its endpoint, so pull just the query params (incl. $skiptoken) back
+            # out and keep reusing the same relative endpoint.
+            params = dict(parse_qsl(urlparse(next_href).query))
+
+        return ids
 
     def _replace_purchase_entry_lines(self, entry_id: str, new_lines: list) -> list:
         """Replace all PurchaseEntryLines for an existing PurchaseEntry.
