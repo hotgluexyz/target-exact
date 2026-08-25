@@ -809,13 +809,10 @@ class PurchaseEntriesSink(ExactSink):
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
 
-            # Header PUT succeeded - now that we know the entry itself is valid, replace
-            # its lines. If this fails, the header change is still kept (better than
-            # silently keeping stale amounts, and it's already logged/raised below).
-            # Exact can't hold zero lines, so an empty new_lines means "no line data
-            # was sent" - skip the replace and keep the existing lines rather than
-            # wiping them out with nothing to put back (see _replace_purchase_entry_lines).
-            if method == "PUT":
+            # Opt-in per tenant (flagged in PR review as riskier than the header-only
+            # PUT it replaces). Exact can't hold zero lines, so an empty new_lines
+            # skips the replace and keeps existing lines instead of wiping them out.
+            if method == "PUT" and self.config.get("replace_purchase_entry_lines_on_update"):
                 if new_lines:
                     self._replace_purchase_entry_lines(id, new_lines)
                 elif new_lines is not None:

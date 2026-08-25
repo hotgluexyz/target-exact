@@ -20,13 +20,14 @@ class FakeResponse:
         self.text = text
 
 
-def make_sink(request_side_effect):
+def make_sink(request_side_effect, config=None):
     """Build a PurchaseEntriesSink without running HotglueSink.__init__."""
     sink = PurchaseEntriesSink.__new__(PurchaseEntriesSink)
     sink.request_api = MagicMock(side_effect=request_side_effect)
     sink.logger = MagicMock()
     sink.name = "PurchaseEntries"
     sink.endpoint = "/purchaseentry/PurchaseEntries"
+    sink._config = config or {}
     return sink
 
 
@@ -230,10 +231,16 @@ class TestUpsertRecordEmptyNewLines:
     constraint partway through and leaves the entry with some old lines
     permanently gone and nothing put back. upsert_record must never call
     _replace_purchase_entry_lines when new_lines is empty.
+
+    These tests exercise that guard with the line-replacement flag on, since
+    that's the only state where _replace_purchase_entry_lines is ever reached
+    (see TestReplacePurchaseEntryLinesFlag for the flag-off/default behavior).
     """
 
+    FLAG_ON = {"replace_purchase_entry_lines_on_update": True}
+
     def test_empty_lines_on_update_skips_replace_entirely(self):
-        sink = make_sink([FakeResponse(204)])  # header PUT only
+        sink = make_sink([FakeResponse(204)], config=self.FLAG_ON)  # header PUT only
         record = {
             "Id": "entry-1",
             "Currency": "EUR",
@@ -250,7 +257,7 @@ class TestUpsertRecordEmptyNewLines:
         sink.logger.warning.assert_called_once()
 
     def test_none_lines_on_update_skips_replace_without_warning(self):
-        sink = make_sink([FakeResponse(204)])
+        sink = make_sink([FakeResponse(204)], config=self.FLAG_ON)
         record = {"Id": "entry-1", "Currency": "EUR"}
 
         sink.upsert_record(record, {})
@@ -265,7 +272,8 @@ class TestUpsertRecordEmptyNewLines:
                 FakeResponse(200),  # GET existing lines
                 FakeResponse(201),  # POST new line
                 FakeResponse(204),  # DELETE old line
-            ]
+            ],
+            config=self.FLAG_ON,
         )
         record = {
             "Id": "entry-1",
@@ -281,4 +289,46 @@ class TestUpsertRecordEmptyNewLines:
 
         methods = [c.args[0] for c in sink.request_api.call_args_list]
         assert methods == ["PUT", "GET", "POST", "DELETE"]
+        sink.logger.warning.assert_not_called()
+
+
+class TestReplacePurchaseEntryLinesFlag:
+    """Guards the PR review request (code owner keyn4, PR #13): deleting and
+    recreating every PurchaseEntryLine is a bigger, riskier change than the
+    header-only PUT it replaces, so it must stay opt-in per tenant behind
+    replace_purchase_entry_lines_on_update. With the flag unset or false,
+    upsert_record must reproduce the pre-fix behavior exactly: header PUT
+    only, PurchaseEntryLines changes silently dropped, no warning logged.
+    """
+
+    def test_flag_unset_by_default_skips_replace_even_with_new_lines(self):
+        sink = make_sink([FakeResponse(204)])  # no config passed -> flag unset
+        record = {
+            "Id": "entry-1",
+            "Currency": "EUR",
+            "PurchaseEntryLines": [{"AmountFC": 100}],
+        }
+
+        id_, success, state_updates = sink.upsert_record(record, {})
+
+        assert id_ == "entry-1"
+        assert success is True
+        assert sink.request_api.call_count == 1
+        assert sink.request_api.call_args_list[0].args[0] == "PUT"
+        sink.logger.warning.assert_not_called()
+
+    def test_flag_explicitly_false_skips_replace(self):
+        sink = make_sink(
+            [FakeResponse(204)],
+            config={"replace_purchase_entry_lines_on_update": False},
+        )
+        record = {
+            "Id": "entry-1",
+            "Currency": "EUR",
+            "PurchaseEntryLines": [{"AmountFC": 100}],
+        }
+
+        sink.upsert_record(record, {})
+
+        assert sink.request_api.call_count == 1
         sink.logger.warning.assert_not_called()
