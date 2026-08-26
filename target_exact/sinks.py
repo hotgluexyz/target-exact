@@ -680,8 +680,7 @@ class PurchaseEntriesSink(ExactSink):
                 params=params,
             )
             response_json = xmltodict.parse(response.text)
-            # an empty result parses as {"feed": None} (the "feed" key is present but its
-            # value isn't a dict), so .get("feed", {}) alone doesn't protect against it
+            # empty result parses as {"feed": None}, not {} - .get("feed", {}) alone misses it
             feed = response_json.get("feed") or {}
             entries = feed.get("entry")
             if entries:
@@ -689,45 +688,51 @@ class PurchaseEntriesSink(ExactSink):
                     entries = [entries]
                 ids.extend(entry["content"]["m:properties"]["d:ID"]["#text"] for entry in entries)
 
-            # Exact paginates PurchaseEntryLines feeds beyond its page size (60 by
-            # default) via an Atom <link rel="next" href="..."> element instead of
-            # returning everything in one response. Missing a page here means those
-            # lines never get deleted in _replace_purchase_entry_lines, leaving stale
-            # lines behind alongside the new ones.
+            # Exact paginates via an Atom <link rel="next"> instead of one response;
+            # missing a page here leaves those lines undeleted in the caller.
             links = feed.get("link") or []
             if isinstance(links, dict):
                 links = [links]
             next_href = next((link["@href"] for link in links if link.get("@rel") == "next"), None)
             if not next_href:
                 break
-            # The next link is an absolute URL; request_api always prepends base_url
-            # to its endpoint, so pull just the query params (incl. $skiptoken) back
-            # out and keep reusing the same relative endpoint.
+            # next_href is absolute; request_api prepends base_url itself, so keep only the query params
             params = dict(parse_qsl(urlparse(next_href).query))
 
         return ids
 
+    def _rollback_created_lines(self, entry_id: str, created_ids: list) -> None:
+        """Undo a failed replace by deleting the lines just created for entry_id."""
+        rolled_back = []
+        try:
+            for line_id in created_ids:
+                self.request_api(
+                    "DELETE", endpoint=f"/purchaseentry/PurchaseEntryLines(guid'{line_id}')"
+                )
+                rolled_back.append(line_id)
+        except Exception as e:
+            raise Exception(
+                f"Rollback failed for entry {entry_id}: removed {len(rolled_back)}/{len(created_ids)} "
+                f"of the newly created lines before failing - entry now has stray new line(s) "
+                f"alongside the untouched old ones and needs manual review: {e}"
+            )
+
     def _replace_purchase_entry_lines(self, entry_id: str, new_lines: list) -> list:
         """Replace all PurchaseEntryLines for an existing PurchaseEntry.
 
-        Exact's OData API does not support replacing the nested PurchaseEntryLines
-        collection via a single PUT on the parent PurchaseEntries resource (embedding
-        lines in a header PUT either errors or duplicates lines - see commit 9994f11,
-        "fix payload for PUT purchase entries", 2024-01-02). Lines must instead be
-        deleted and recreated individually through their own endpoint.
+        Exact's OData API can't replace nested PurchaseEntryLines via a header PUT
+        (errors or duplicates lines), so lines are deleted and recreated
+        individually - new ones created BEFORE old ones are deleted, since Exact
+        rejects deleting an entry's last remaining line (confirmed live, job jvgkWM).
 
-        Create the new lines BEFORE deleting the old ones. Exact rejects deleting a
-        PurchaseEntry's last remaining line with "Unexpected number of lines. Should
-        be at least one line." - confirmed live (job jvgkWM): an entry with 1 existing
-        line failed on the very first DELETE, before any new line existed to replace
-        it. Creating first means the entry always has >= 1 line at every point in
-        time, at the cost of briefly showing both old and new lines together.
+        A create failure, or a delete failure before any old line is removed, rolls
+        back the new lines since the entry is still fully restorable. Once an old
+        line is actually gone there's no way back, so only that raises "needs manual
+        review" (PR review, target-exact#13).
 
-        Callers must never pass an empty new_lines here: with 2+ existing lines,
-        deleting them all with nothing created first hits the same "at least one
-        line" constraint partway through, leaving some old lines gone and no new
-        ones in their place. upsert_record only calls this when new_lines is
-        non-empty for that reason.
+        Callers must never pass an empty new_lines: with 2+ existing lines, deleting
+        them all first hits the same last-line constraint partway through.
+        upsert_record already guards this.
         """
         existing_line_ids = self._get_existing_line_ids(entry_id)
 
@@ -742,11 +747,11 @@ class PurchaseEntriesSink(ExactSink):
                 line_json = xmltodict.parse(response.text)
                 created_ids.append(line_json["entry"]["content"]["m:properties"]["d:ID"]["#text"])
         except Exception as e:
+            self._rollback_created_lines(entry_id, created_ids)
             raise Exception(
-                f"Failed to create new PurchaseEntryLines for entry {entry_id} "
-                f"(created {len(created_ids)}/{len(new_lines)} lines before failure - "
-                f"old lines were left untouched, entry now has {len(existing_line_ids)} old "
-                f"line(s) plus {len(created_ids)} new one(s) and needs manual review): {e}"
+                f"Failed to create new PurchaseEntryLines for entry {entry_id} after retries, "
+                f"rolled back {len(created_ids)} created line(s) - old lines are untouched, "
+                f"entry is unchanged: {e}"
             )
 
         deleted_ids = []
@@ -757,9 +762,16 @@ class PurchaseEntriesSink(ExactSink):
                 )
                 deleted_ids.append(line_id)
         except Exception as e:
+            if not deleted_ids:
+                self._rollback_created_lines(entry_id, created_ids)
+                raise Exception(
+                    f"Failed to delete old PurchaseEntryLines for entry {entry_id} after retries, "
+                    f"before any were removed - rolled back {len(created_ids)} created line(s), "
+                    f"entry is unchanged: {e}"
+                )
             raise Exception(
                 f"Created {len(created_ids)} new PurchaseEntryLines for entry {entry_id} but "
-                f"failed to delete the old ones (deleted {len(deleted_ids)}/{len(existing_line_ids)} "
+                f"failed to delete the old ones after retries (deleted {len(deleted_ids)}/{len(existing_line_ids)} "
                 f"before failure - entry now has BOTH old and new lines and needs manual review): {e}"
             )
         return created_ids

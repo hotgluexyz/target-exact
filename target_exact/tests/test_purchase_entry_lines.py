@@ -194,6 +194,12 @@ class TestReplacePurchaseEntryLines:
         assert [c.args[0] for c in sink.request_api.call_args_list] == ["GET", "POST"]
 
     def test_partial_delete_failure_raises_with_progress_counts(self):
+        """A delete that fails AFTER at least one old line is already gone can't be
+        rolled back (recreating a deleted old line needs data this method no longer
+        has), so this is the one case that surfaces the "needs manual review" error
+        instead of a rollback. request_api already retries internally with backoff
+        (see client._request), so this failure means retries were exhausted."""
+
         def side_effect(method, endpoint=None, request_data=None, params=None):
             if method == "GET":
                 return FakeResponse(200)
@@ -221,7 +227,104 @@ class TestReplacePurchaseEntryLines:
         delete_calls = [
             c for c in sink.request_api.call_args_list if c.args[0] == "DELETE"
         ]
-        assert len(delete_calls) == 2  # stopped after the failing second delete
+        assert len(delete_calls) == 2  # stopped after the failing second delete - no rollback attempted
+
+    def test_create_failure_rolls_back_created_lines(self):
+        """A create failure (retries exhausted) must undo any lines already created
+        for this entry and leave the old lines completely untouched - the entry is
+        restorable to its exact prior state at this point, so it should be, per PR
+        review (target-exact#13)."""
+
+        def side_effect(method, endpoint=None, request_data=None, params=None):
+            if method == "GET":
+                return FakeResponse(200)
+            if method == "POST":
+                if request_data.get("AmountFC") == 200:
+                    raise Exception("500 server error")
+                return FakeResponse(201)
+            if method == "DELETE":
+                return FakeResponse(204)
+
+        sink = PurchaseEntriesSink.__new__(PurchaseEntriesSink)
+        sink.logger = MagicMock()
+        sink.request_api = MagicMock(side_effect=side_effect)
+
+        with patch(
+            "target_exact.sinks.xmltodict.parse",
+            side_effect=[entry_ids_feed(["old-1"]), created_entry("new-1")],
+        ):
+            with pytest.raises(Exception, match=r"rolled back 1 created line\(s\) - old lines are untouched, entry is unchanged"):
+                sink._replace_purchase_entry_lines(
+                    "entry-1", [{"AmountFC": 100}, {"AmountFC": 200}]
+                )
+
+        calls = sink.request_api.call_args_list
+        methods = [c.args[0] for c in calls]
+        # GET existing, POST new-1, POST new-2 (fails), DELETE new-1 (rollback) -
+        # old-1 is never touched
+        assert methods == ["GET", "POST", "POST", "DELETE"]
+        assert calls[-1].kwargs["endpoint"] == "/purchaseentry/PurchaseEntryLines(guid'new-1')"
+
+    def test_first_delete_failure_rolls_back_created_lines(self):
+        """A delete failure before any old line has been removed is also fully
+        recoverable - old-1 is still there, so roll back the new lines and leave the
+        entry exactly as it started, per PR review (target-exact#13)."""
+
+        def side_effect(method, endpoint=None, request_data=None, params=None):
+            if method == "GET":
+                return FakeResponse(200)
+            if method == "POST":
+                return FakeResponse(201)
+            if method == "DELETE":
+                if endpoint == "/purchaseentry/PurchaseEntryLines(guid'old-1')":
+                    raise Exception("500 server error")
+                return FakeResponse(204)
+
+        sink = PurchaseEntriesSink.__new__(PurchaseEntriesSink)
+        sink.logger = MagicMock()
+        sink.request_api = MagicMock(side_effect=side_effect)
+
+        with patch(
+            "target_exact.sinks.xmltodict.parse",
+            side_effect=[entry_ids_feed(["old-1"]), created_entry("new-1")],
+        ):
+            with pytest.raises(Exception, match=r"before any were removed - rolled back 1 created line\(s\), entry is unchanged"):
+                sink._replace_purchase_entry_lines("entry-1", [{"AmountFC": 100}])
+
+        calls = sink.request_api.call_args_list
+        methods = [c.args[0] for c in calls]
+        # GET existing, POST new-1, DELETE old-1 (fails), DELETE new-1 (rollback)
+        assert methods == ["GET", "POST", "DELETE", "DELETE"]
+        assert calls[-1].kwargs["endpoint"] == "/purchaseentry/PurchaseEntryLines(guid'new-1')"
+
+    def test_rollback_failure_raises_needs_manual_review(self):
+        """If even the rollback delete fails, that genuinely can't be recovered from
+        automatically - the entry now has a stray new line plus its full old lines,
+        and that must surface as a "needs manual review" error rather than being
+        swallowed by the original failure's message."""
+
+        def side_effect(method, endpoint=None, request_data=None, params=None):
+            if method == "GET":
+                return FakeResponse(200)
+            if method == "POST":
+                if request_data.get("AmountFC") == 200:
+                    raise Exception("500 server error")
+                return FakeResponse(201)
+            if method == "DELETE":
+                raise Exception("connection reset")
+
+        sink = PurchaseEntriesSink.__new__(PurchaseEntriesSink)
+        sink.logger = MagicMock()
+        sink.request_api = MagicMock(side_effect=side_effect)
+
+        with patch(
+            "target_exact.sinks.xmltodict.parse",
+            side_effect=[entry_ids_feed(["old-1"]), created_entry("new-1")],
+        ):
+            with pytest.raises(Exception, match=r"Rollback failed for entry entry-1.*needs manual review"):
+                sink._replace_purchase_entry_lines(
+                    "entry-1", [{"AmountFC": 100}, {"AmountFC": 200}]
+                )
 
 
 class TestUpsertRecordEmptyNewLines:
