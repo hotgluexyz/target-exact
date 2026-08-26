@@ -7,6 +7,7 @@ from singer_sdk.exceptions import FatalAPIError
 import xmltodict
 import json
 import datetime
+from urllib.parse import parse_qsl, urlparse
 from pendulum import parse
 
 from target_exact.client import ExactSink
@@ -668,6 +669,113 @@ class PurchaseEntriesSink(ExactSink):
         except Exception as e:
             return {"error": str(e)}
 
+    def _get_existing_line_ids(self, entry_id: str) -> list:
+        """Return the IDs of the PurchaseEntryLines currently attached to a PurchaseEntry."""
+        ids = []
+        params = {"$filter": f"EntryID eq guid'{entry_id}'", "$select": "ID"}
+        while True:
+            response = self.request_api(
+                "GET",
+                endpoint="/purchaseentry/PurchaseEntryLines",
+                params=params,
+            )
+            response_json = xmltodict.parse(response.text)
+            # empty result parses as {"feed": None}, not {} - .get("feed", {}) alone misses it
+            feed = response_json.get("feed") or {}
+            entries = feed.get("entry")
+            if entries:
+                if isinstance(entries, dict):
+                    entries = [entries]
+                ids.extend(entry["content"]["m:properties"]["d:ID"]["#text"] for entry in entries)
+
+            # Exact paginates via an Atom <link rel="next"> instead of one response;
+            # missing a page here leaves those lines undeleted in the caller.
+            links = feed.get("link") or []
+            if isinstance(links, dict):
+                links = [links]
+            next_href = next((link["@href"] for link in links if link.get("@rel") == "next"), None)
+            if not next_href:
+                break
+            # next_href is absolute; request_api prepends base_url itself, so keep only the query params
+            params = dict(parse_qsl(urlparse(next_href).query))
+
+        return ids
+
+    def _rollback_created_lines(self, entry_id: str, created_ids: list) -> None:
+        """Undo a failed replace by deleting the lines just created for entry_id."""
+        rolled_back = []
+        try:
+            for line_id in created_ids:
+                self.request_api(
+                    "DELETE", endpoint=f"/purchaseentry/PurchaseEntryLines(guid'{line_id}')"
+                )
+                rolled_back.append(line_id)
+        except Exception as e:
+            raise Exception(
+                f"Rollback failed for entry {entry_id}: removed {len(rolled_back)}/{len(created_ids)} "
+                f"of the newly created lines before failing - entry now has stray new line(s) "
+                f"alongside the untouched old ones and needs manual review: {e}"
+            )
+
+    def _replace_purchase_entry_lines(self, entry_id: str, new_lines: list) -> list:
+        """Replace all PurchaseEntryLines for an existing PurchaseEntry.
+
+        Exact's OData API can't replace nested PurchaseEntryLines via a header PUT
+        (errors or duplicates lines), so lines are deleted and recreated
+        individually - new ones created BEFORE old ones are deleted, since Exact
+        rejects deleting an entry's last remaining line (confirmed live, job jvgkWM).
+
+        A create failure, or a delete failure before any old line is removed, rolls
+        back the new lines since the entry is still fully restorable. Once an old
+        line is actually gone there's no way back, so only that raises "needs manual
+        review" (PR review, target-exact#13).
+
+        Callers must never pass an empty new_lines: with 2+ existing lines, deleting
+        them all first hits the same last-line constraint partway through.
+        upsert_record already guards this.
+        """
+        existing_line_ids = self._get_existing_line_ids(entry_id)
+
+        created_ids = []
+        try:
+            for line in new_lines:
+                line_payload = dict(line)
+                line_payload["EntryID"] = entry_id
+                response = self.request_api(
+                    "POST", endpoint="/purchaseentry/PurchaseEntryLines", request_data=line_payload
+                )
+                line_json = xmltodict.parse(response.text)
+                created_ids.append(line_json["entry"]["content"]["m:properties"]["d:ID"]["#text"])
+        except Exception as e:
+            self._rollback_created_lines(entry_id, created_ids)
+            raise Exception(
+                f"Failed to create new PurchaseEntryLines for entry {entry_id} after retries, "
+                f"rolled back {len(created_ids)} created line(s) - old lines are untouched, "
+                f"entry is unchanged: {e}"
+            )
+
+        deleted_ids = []
+        try:
+            for line_id in existing_line_ids:
+                self.request_api(
+                    "DELETE", endpoint=f"/purchaseentry/PurchaseEntryLines(guid'{line_id}')"
+                )
+                deleted_ids.append(line_id)
+        except Exception as e:
+            if not deleted_ids:
+                self._rollback_created_lines(entry_id, created_ids)
+                raise Exception(
+                    f"Failed to delete old PurchaseEntryLines for entry {entry_id} after retries, "
+                    f"before any were removed - rolled back {len(created_ids)} created line(s), "
+                    f"entry is unchanged: {e}"
+                )
+            raise Exception(
+                f"Created {len(created_ids)} new PurchaseEntryLines for entry {entry_id} but "
+                f"failed to delete the old ones after retries (deleted {len(deleted_ids)}/{len(existing_line_ids)} "
+                f"before failure - entry now has BOTH old and new lines and needs manual review): {e}"
+            )
+        return created_ids
+
     def upsert_record(self, record: dict, context: dict) -> None:
         """Process the record."""
         state_updates = dict()
@@ -679,13 +787,16 @@ class PurchaseEntriesSink(ExactSink):
                 raise Exception(record.get("error"))
             # check if there is id to update or create the record
             id = record.pop("Id", None)
+            new_lines = record.pop("PurchaseEntryLines", None)
             if id:
                 endpoint = f"{self.endpoint}(guid'{id}')"
                 method = "PUT"
                 action = "updated"
-                record.pop("PurchaseEntryLines", None)
                 state_updates["is_updated"] = True
-            
+            elif new_lines is not None:
+                # Creating a new entry - lines are embedded in the single POST, as before.
+                record["PurchaseEntryLines"] = new_lines
+
             try:
                 response = self.request_api(
                     method, endpoint=endpoint, request_data=record
@@ -709,5 +820,18 @@ class PurchaseEntriesSink(ExactSink):
             if response.status_code == 201:
                 res_json = xmltodict.parse(response.text)
                 id = res_json["entry"]["content"]["m:properties"]["d:EntryID"]["#text"]
+
+            # Opt-in per tenant (flagged in PR review as riskier than the header-only
+            # PUT it replaces). Exact can't hold zero lines, so an empty new_lines
+            # skips the replace and keeps existing lines instead of wiping them out.
+            if method == "PUT" and self.config.get("replace_purchase_entry_lines_on_update"):
+                if new_lines:
+                    self._replace_purchase_entry_lines(id, new_lines)
+                elif new_lines is not None:
+                    self.logger.warning(
+                        f"Received empty PurchaseEntryLines for PurchaseEntry {id} update; "
+                        "Exact does not allow zero lines, keeping existing lines unchanged."
+                    )
+
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
