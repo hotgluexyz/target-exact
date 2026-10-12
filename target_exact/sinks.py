@@ -13,6 +13,9 @@ from pendulum import parse
 from target_exact.client import ExactSink
 from target_exact.constants import countries
 
+EXACT_PURCHASE_ENTRY_TYPE = 30
+EXACT_PURCHASE_CREDIT_NOTE_TYPE = 31
+
 
 
 class BuyOrdersSink(ExactSink):
@@ -454,6 +457,20 @@ class PurchaseEntriesSink(ExactSink):
 
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
+    entry_type = EXACT_PURCHASE_ENTRY_TYPE
+
+    def _to_exact_line_amount(self, amount):
+        return amount
+
+    def _is_existing_entry_of_this_type(self, entry_id: str) -> bool:
+        return bool(self.get_id(
+            self.endpoint,
+            {
+                "$filter": f"EntryID eq guid'{entry_id}' and Type eq {self.entry_type}",
+                "$select": "EntryID",
+            },
+            key="EntryID",
+        ))
 
     def _find_existing_purchase_entry_id(self, invoice_number: str, supplier_id: str):
         """Return existing EntryID for the same YourRef+Supplier pair."""
@@ -463,7 +480,8 @@ class PurchaseEntriesSink(ExactSink):
         params = {
             "$filter": (
                 f"YourRef eq '{self.escape_odata_string(invoice_number)}' "
-                f"and Supplier eq guid'{supplier_id}'"
+                f"and Supplier eq guid'{supplier_id}' "
+                f"and Type eq {self.entry_type}"
             ),
             "$select": "EntryID,Modified",
             "$top": 1,
@@ -601,6 +619,10 @@ class PurchaseEntriesSink(ExactSink):
             else:
                 return {"error": f"Unable to send PurchaseEntry as Supplier '{record.get('supplierName')}' doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
 
+            explicit_entry_id = payload.get("Id")
+            if explicit_entry_id and not self._is_existing_entry_of_this_type(explicit_entry_id):
+                return {"error": f"Unable to send {self.name} as id '{explicit_entry_id}' doesn't match an existing entry with Type {self.entry_type} for record with invoiceNumber {record.get('invoiceNumber')}"}
+
             # Update only when both invoice reference and supplier match an existing entry.
             if not payload.get("Id") and record.get("invoiceNumber") and supplier_id:
                 existing_entry_id = self._find_existing_purchase_entry_id(
@@ -614,6 +636,10 @@ class PurchaseEntriesSink(ExactSink):
                         supplier_id,
                     )
                     payload["Id"] = existing_entry_id
+
+            is_new_entry = not payload.get("Id")
+            if is_new_entry:
+                payload["Type"] = self.entry_type
 
             lookup_taxes = self.config.get("lookup_taxes_by_name") or False
             invoice_lines = []
@@ -639,9 +665,10 @@ class PurchaseEntriesSink(ExactSink):
                             vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
                         else:
                             vat_code = line.get('taxCode')
+                        line_amount = self._to_exact_line_amount(line.get("amount"))
                         invoice_line = {
-                            "AmountFC": line.get("amount"),
-                            "AmountDC": line.get("amount"),
+                            "AmountFC": line_amount,
+                            "AmountDC": line_amount,
                             "GLAccount": account_id,
                             "Description": line.get("description", line.get("productName")),
                             "VATCode": vat_code,
@@ -835,3 +862,15 @@ class PurchaseEntriesSink(ExactSink):
 
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
+
+
+class PurchaseCreditsSink(PurchaseEntriesSink):
+
+    name = "PurchaseCredits"
+    entry_type = EXACT_PURCHASE_CREDIT_NOTE_TYPE
+
+    def _to_exact_line_amount(self, amount):
+        amount_is_missing = amount is None or amount == ""
+        if amount_is_missing:
+            return amount
+        return -abs(float(amount))
