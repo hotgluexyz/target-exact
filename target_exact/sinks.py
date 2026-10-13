@@ -13,6 +13,9 @@ from pendulum import parse
 from target_exact.client import ExactSink
 from target_exact.constants import countries
 
+EXACT_PURCHASE_ENTRY_TYPE = 30
+EXACT_PURCHASE_CREDIT_NOTE_TYPE = 31
+
 
 
 class BuyOrdersSink(ExactSink):
@@ -454,6 +457,10 @@ class PurchaseEntriesSink(ExactSink):
 
     name = "PurchaseEntries"
     endpoint = "/purchaseentry/PurchaseEntries"
+    entry_type = EXACT_PURCHASE_ENTRY_TYPE
+
+    def _to_exact_line_amount(self, amount):
+        return amount
 
     def _find_existing_purchase_entry_id(self, invoice_number: str, supplier_id: str):
         """Return existing EntryID for the same YourRef+Supplier pair."""
@@ -463,7 +470,8 @@ class PurchaseEntriesSink(ExactSink):
         params = {
             "$filter": (
                 f"YourRef eq '{self.escape_odata_string(invoice_number)}' "
-                f"and Supplier eq guid'{supplier_id}'"
+                f"and Supplier eq guid'{supplier_id}' "
+                f"and Type eq {self.entry_type}"
             ),
             "$select": "EntryID,Modified",
             "$top": 1,
@@ -575,7 +583,8 @@ class PurchaseEntriesSink(ExactSink):
                 "ReportingYear": year,
                 "Description": record.get("description"),
                 "PaymentReference": record.get("paymentReference"),
-                "Id": record.get("id")
+                "Id": record.get("id"),
+                "Type": self.entry_type,
             }
             #get supplier id
             supplier_id = None
@@ -639,9 +648,10 @@ class PurchaseEntriesSink(ExactSink):
                             vat_code = self.get_id("/vat/VATCodes", {"$filter": f"Description eq '{line.get('taxCode')}'"}, key="Code")
                         else:
                             vat_code = line.get('taxCode')
+                        line_amount = self._to_exact_line_amount(line.get("amount"))
                         invoice_line = {
-                            "AmountFC": line.get("amount"),
-                            "AmountDC": line.get("amount"),
+                            "AmountFC": line_amount,
+                            "AmountDC": line_amount,
                             "GLAccount": account_id,
                             "Description": line.get("description", line.get("productName")),
                             "VATCode": vat_code,
@@ -835,3 +845,12 @@ class PurchaseEntriesSink(ExactSink):
 
             self.logger.info(f"{self.name} {action} with id: {id}")
             return id, True, state_updates
+
+
+class PurchaseCreditsSink(PurchaseEntriesSink):
+
+    name = "PurchaseCredits"
+    entry_type = EXACT_PURCHASE_CREDIT_NOTE_TYPE
+
+    def _to_exact_line_amount(self, amount):
+        return -abs(float(amount))
