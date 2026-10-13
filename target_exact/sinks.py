@@ -462,16 +462,6 @@ class PurchaseEntriesSink(ExactSink):
     def _to_exact_line_amount(self, amount):
         return amount
 
-    def _is_existing_entry_of_this_type(self, entry_id: str) -> bool:
-        return bool(self.get_id(
-            self.endpoint,
-            {
-                "$filter": f"EntryID eq guid'{entry_id}' and Type eq {self.entry_type}",
-                "$select": "EntryID",
-            },
-            key="EntryID",
-        ))
-
     def _find_existing_purchase_entry_id(self, invoice_number: str, supplier_id: str):
         """Return existing EntryID for the same YourRef+Supplier pair."""
         if not invoice_number or not supplier_id:
@@ -593,7 +583,8 @@ class PurchaseEntriesSink(ExactSink):
                 "ReportingYear": year,
                 "Description": record.get("description"),
                 "PaymentReference": record.get("paymentReference"),
-                "Id": record.get("id")
+                "Id": record.get("id"),
+                "Type": self.entry_type,
             }
             #get supplier id
             supplier_id = None
@@ -619,10 +610,6 @@ class PurchaseEntriesSink(ExactSink):
             else:
                 return {"error": f"Unable to send PurchaseEntry as Supplier '{record.get('supplierName')}' doesn't exist for record with invoiceNumber {record.get('invoiceNumber')}"}
 
-            explicit_entry_id = payload.get("Id")
-            if explicit_entry_id and not self._is_existing_entry_of_this_type(explicit_entry_id):
-                return {"error": f"Unable to send {self.name} as id '{explicit_entry_id}' doesn't match an existing entry with Type {self.entry_type} for record with invoiceNumber {record.get('invoiceNumber')}"}
-
             # Update only when both invoice reference and supplier match an existing entry.
             if not payload.get("Id") and record.get("invoiceNumber") and supplier_id:
                 existing_entry_id = self._find_existing_purchase_entry_id(
@@ -636,10 +623,6 @@ class PurchaseEntriesSink(ExactSink):
                         supplier_id,
                     )
                     payload["Id"] = existing_entry_id
-
-            is_new_entry = not payload.get("Id")
-            if is_new_entry:
-                payload["Type"] = self.entry_type
 
             lookup_taxes = self.config.get("lookup_taxes_by_name") or False
             invoice_lines = []
@@ -870,7 +853,4 @@ class PurchaseCreditsSink(PurchaseEntriesSink):
     entry_type = EXACT_PURCHASE_CREDIT_NOTE_TYPE
 
     def _to_exact_line_amount(self, amount):
-        amount_is_missing = amount is None or amount == ""
-        if amount_is_missing:
-            return amount
         return -abs(float(amount))
