@@ -22,6 +22,7 @@ class ExactAuthenticator(OAuthAuthenticator):
         Args:
             stream: A stream for a RESTful endpoint.
         """
+        super().__init__(target, state, auth_endpoint)
         self.target_name: str = target.name
         self._config: Dict[str, Any] = target._config
         self._auth_headers: Dict[str, Any] = {}
