@@ -30,6 +30,8 @@ class ExactAuthenticator(OAuthAuthenticator):
         self._auth_endpoint = auth_endpoint
         self._target = target
         self.state = state
+        self.expires_in = None
+        self.last_refreshed = None
 
     @property
     def oauth_request_body(self) -> dict:
