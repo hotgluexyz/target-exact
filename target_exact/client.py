@@ -5,6 +5,7 @@ from hotglue_singer_sdk.plugin_base import PluginBase
 from typing import Dict, List, Optional
 import backoff
 import requests
+from hotglue_etl_exceptions import InvalidCredentialsError, InvalidPayloadError
 from hotglue_singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 import xmltodict
 import re
@@ -132,6 +133,10 @@ class ExactSink(HotglueSink):
                 self.logger.error({"error": msg})
             except:
                 msg = self.response_error_message(response)
+            if response.status_code in (401, 403):
+                raise InvalidCredentialsError(msg)
+            if response.status_code == 400:
+                raise InvalidPayloadError(msg)
             raise FatalAPIError(msg)
     
     def request_api(self, http_method, endpoint=None, params={}, request_data=None, headers={}):

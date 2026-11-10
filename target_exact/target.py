@@ -11,6 +11,7 @@ from target_exact.sinks import (
     WarehouseTransfersSink
 )
 
+from hotglue_singer_sdk.helpers.capabilities import AlertingLevel
 from hotglue_singer_sdk.target_sdk.target import TargetHotglue
 from typing import List, Optional, Union
 from pathlib import PurePath
@@ -35,6 +36,7 @@ class TargetExact(TargetHotglue):
     SINK_TYPES = [BuyOrdersSink, UpdateInventory, ItemsSink, PurchaseInvoicesSink, SuppliersSink, PurchaseEntriesSink, SalesOrdersSink, ShopOrdersSink, WarehouseTransfersSink]
     MAX_PARALLELISM = 10
     name = "target-exact"
+    alerting_level = AlertingLevel.WARNING
 
     @classmethod
     def access_token_support(cls, connector=None):
