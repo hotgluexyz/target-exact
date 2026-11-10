@@ -134,7 +134,7 @@ class ExactSink(HotglueSink):
             except:
                 msg = self.response_error_message(response)
             if response.status_code in (401, 403):
-                raise InvalidCredentialsError(msg)
+                raise InvalidCredentialsError(msg if response.status_code == 401 else f"Insufficient permissions in Exact: {msg}")
             if response.status_code == 400:
                 raise InvalidPayloadError(msg)
             raise FatalAPIError(msg)
