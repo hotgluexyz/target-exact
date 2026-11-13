@@ -1,0 +1,763 @@
+interactions:
+- request:
+    body: grant_type=refresh_token
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/oauth2/token
+  response:
+    body:
+      string: '{"error": "access_denied", "error_description": "Rate limit exceeded:
+        access_token not expired"}'
+    headers:
+      Cache-Control:
+      - no-cache
+      - no-store
+      Connection:
+      - close
+      Content-Length:
+      - '96'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 09 Nov 2026 22:47:10 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Reason:
+      - 'TooEarlyToRefreshTokens: Rate limit exceeded: access_token not expired'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Retry-After:
+      - '233'
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 11e708e6-1945-4ce0-b4f2-f93a117b9427
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.25.1
+    method: GET
+    uri: https://start.exactonline.nl/api/v1//3527190/crm/Accounts?%24filter=Name%20eq%20%27-Fallback-scrubbed-qtiFkaLBzxlUxwBATEEgpvcSlPe%27
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<feed\
+        \ xml:base=\"https://start.exactonline.nl/api/v1/3527190/crm/\" xmlns:d=\"\
+        http://schemas.microsoft.com/ado/2007/08/dataservices\" xmlns:m=\"http://schemas.microsoft.com/ado/2007/08/dataservices/metadata\"\
+        \ xmlns=\"http://www.w3.org/2005/Atom\">\r\n  <title type=\"text\">Accounts</title>\r\
+        \n  <id>https://start.exactonline.nl/api/v1/3527190/crm/Accounts</id>\r\n\
+        \  <updated>2026-11-09T22:47:11Z</updated>\r\n  <author>\r\n    <name />\r\
+        \n  </author>\r\n  <link rel=\"self\" title=\"Accounts\" href=\"Accounts\"\
+        \ />\r\n</feed>"
+    headers:
+      Cache-Control:
+      - no-cache, no-store
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '551'
+      Content-Security-Policy:
+      - frame-ancestors 'self'; object-src 'self'; report-uri https://exactonline.report-uri.com/r/t/csp/enforce
+      Content-Type:
+      - application/atom+xml;charset=utf-8
+      DataServiceVersion:
+      - 2.0;
+      Date:
+      - Mon, 09 Nov 2026 22:47:11 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - e4869c2d-1105-466f-a1cb-1aebdbfb9581
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Minutely-Limit:
+      - '60'
+      X-RateLimit-Minutely-Remaining:
+      - '59'
+      X-RateLimit-Minutely-Reset:
+      - '1794264480000'
+      X-RateLimit-Remaining:
+      - '4942'
+      X-RateLimit-Reset:
+      - '1794268800000'
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: grant_type=refresh_token
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/oauth2/token
+  response:
+    body:
+      string: '{"error": "access_denied", "error_description": "Rate limit exceeded:
+        access_token not expired"}'
+    headers:
+      Cache-Control:
+      - no-cache
+      - no-store
+      Connection:
+      - close
+      Content-Length:
+      - '96'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 09 Nov 2026 22:47:12 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Reason:
+      - 'TooEarlyToRefreshTokens: Rate limit exceeded: access_token not expired'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Retry-After:
+      - '232'
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 7913a6a6-fd09-4062-96df-51e1b5b0605e
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.25.1
+    method: GET
+    uri: https://start.exactonline.nl/api/v1//3527190/crm/Accounts?%24filter=Name%20eq%20%27-Fallback-scrubbed-hyBbXPCVPmXVGOuN%27
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<feed\
+        \ xml:base=\"https://start.exactonline.nl/api/v1/3527190/crm/\" xmlns:d=\"\
+        http://schemas.microsoft.com/ado/2007/08/dataservices\" xmlns:m=\"http://schemas.microsoft.com/ado/2007/08/dataservices/metadata\"\
+        \ xmlns=\"http://www.w3.org/2005/Atom\">\r\n  <title type=\"text\">Accounts</title>\r\
+        \n  <id>https://start.exactonline.nl/api/v1/3527190/crm/Accounts</id>\r\n\
+        \  <updated>2026-11-09T22:47:12Z</updated>\r\n  <link rel=\"self\" title=\"\
+        Accounts\" href=\"Accounts\" />\r\n  <entry>\r\n    <id>https://start.exactonline.nl/api/v1/3527190/crm/Accounts(guid'46f20c83-ac8c-487a-a4f4-83c9c8e5bf36')</id>\r\
+        \n    <title type=\"text\"></title>\r\n    <updated>2026-11-09T22:47:12Z</updated>\r\
+        \n    <author>\r\n      <name />\r\n    </author>\r\n    <link rel=\"edit\"\
+        \ title=\"Account\" href=\"Accounts(guid'46f20c83-ac8c-487a-a4f4-83c9c8e5bf36')\"\
+        \ />\r\n    <link rel=\"http://schemas.microsoft.com/ado/2007/08/dataservices/related/BankAccounts\"\
+        \ type=\"application/atom+xml;type=feed\" title=\"BankAccounts\" href=\"Accounts(guid'46f20c83-ac8c-487a-a4f4-83c9c8e5bf36')/BankAccounts\"\
+        \ />\r\n    <category term=\"Exact.Web.Api.Models.Account\" scheme=\"http://schemas.microsoft.com/ado/2007/08/dataservices/scheme\"\
+        \ />\r\n    <content type=\"application/xml\">\r\n      <m:properties>\r\n\
+        \        <d:ID m:type=\"Edm.Guid\">46f20c83-ac8c-487a-a4f4-83c9c8e5bf36</d:ID>\r\
+        \n        <d:Accountant m:type=\"Edm.Guid\" m:null=\"true\" />\r\n       \
+        \ <d:AccountManager m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:AccountManagerFullName\
+        \ m:null=\"true\" />\r\n        <d:AccountManagerHID m:type=\"Edm.Int32\"\
+        \ m:null=\"true\" />\r\n        <d:ActivitySector m:type=\"Edm.Guid\" m:null=\"\
+        true\" />\r\n        <d:ActivitySubSector m:type=\"Edm.Guid\" m:null=\"true\"\
+        \ />\r\n        <d:AddressLine1 m:null=\"true\" />\r\n        <d:AddressLine2\
+        \ m:null=\"true\" />\r\n        <d:AddressLine3 m:null=\"true\" />\r\n   \
+        \     <d:Blocked m:type=\"Edm.Boolean\">false</d:Blocked>\r\n        <d:BRIN\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:BSN m:null=\"true\"\
+        \ />\r\n        <d:BusinessType m:type=\"Edm.Guid\" m:null=\"true\" />\r\n\
+        \        <d:CanDropShip m:type=\"Edm.Boolean\">false</d:CanDropShip>\r\n \
+        \       <d:ChamberOfCommerce m:null=\"true\" />\r\n        <d:City m:null=\"\
+        true\" />\r\n        <d:Classification m:null=\"true\" />\r\n        <d:Classification1\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:Classification2 m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n        <d:Classification3 m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n        <d:Classification4 m:type=\"Edm.Guid\" m:null=\"\
+        true\" />\r\n        <d:Classification5 m:type=\"Edm.Guid\" m:null=\"true\"\
+        \ />\r\n        <d:Classification6 m:type=\"Edm.Guid\" m:null=\"true\" />\r\
+        \n        <d:Classification7 m:type=\"Edm.Guid\" m:null=\"true\" />\r\n  \
+        \      <d:Classification8 m:type=\"Edm.Guid\" m:null=\"true\" />\r\n     \
+        \   <d:ClassificationDescription m:null=\"true\" />\r\n        <d:ClientGroup\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:ClientGroupDescription\
+        \ m:null=\"true\" />\r\n        <d:Code xml:space=\"preserve\">          \
+        \ 2001930</d:Code>\r\n        <d:CodeAtSupplier m:null=\"true\" />\r\n   \
+        \     <d:CompanySize m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:ConsolidationScenario\
+        \ m:type=\"Edm.Byte\">6</d:ConsolidationScenario>\r\n        <d:ControlledDate\
+        \ m:type=\"Edm.DateTime\" m:null=\"true\" />\r\n        <d:Costcenter m:null=\"\
+        true\" />\r\n        <d:CostcenterDescription m:null=\"true\" />\r\n     \
+        \   <d:CostPaid m:type=\"Edm.Byte\">0</d:CostPaid>\r\n        <d:Country xml:space=\"\
+        preserve\">NL </d:Country>\r\n        <d:CountryName>The Netherlands</d:CountryName>\r\
+        \n        <d:Created m:type=\"Edm.DateTime\">2026-07-27T19:38:50.973</d:Created>\r\
+        \n        <d:Creator m:type=\"Edm.Guid\">c9835751-d59e-40fb-8ec3-484741f58425</d:Creator>\r\
+        \n        <d:CreatorFullName>-Fallback-scrubbed-FullName</d:CreatorFullName>\r\n       \
+        \ <d:CreditLinePurchase m:type=\"Edm.Double\">0</d:CreditLinePurchase>\r\n\
+        \        <d:CreditLineSales m:type=\"Edm.Double\">0</d:CreditLineSales>\r\n\
+        \        <d:Currency m:null=\"true\" />\r\n        <d:CustomField m:null=\"\
+        true\" />\r\n        <d:CustomerSince m:type=\"Edm.DateTime\">2026-07-27T00:00:00</d:CustomerSince>\r\
+        \n        <d:DatevCreditorCode m:null=\"true\" />\r\n        <d:DatevDebtorCode\
+        \ m:null=\"true\" />\r\n        <d:DeliveryAdvice m:type=\"Edm.Byte\" m:null=\"\
+        true\" />\r\n        <d:DiscountPurchase m:type=\"Edm.Double\">0</d:DiscountPurchase>\r\
+        \n        <d:DiscountSales m:type=\"Edm.Double\">0</d:DiscountSales>\r\n \
+        \       <d:Division m:type=\"Edm.Int32\">3527190</d:Division>\r\n        <d:Document\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:DunsNumber m:null=\"\
+        true\" />\r\n        <d:Email m:null=\"true\" />\r\n        <d:EnableSalesPaymentLink\
+        \ m:type=\"Edm.Boolean\">false</d:EnableSalesPaymentLink>\r\n        <d:EndDate\
+        \ m:type=\"Edm.DateTime\" m:null=\"true\" />\r\n        <d:EstablishedDate\
+        \ m:type=\"Edm.DateTime\" m:null=\"true\" />\r\n        <d:Fax m:null=\"true\"\
+        \ />\r\n        <d:GLAccountPurchase m:type=\"Edm.Guid\" m:null=\"true\" />\r\
+        \n        <d:GLAccountSales m:type=\"Edm.Guid\" m:null=\"true\" />\r\n   \
+        \     <d:GLAP m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:GLAR m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n        <d:GlnNumber m:null=\"true\" />\r\
+        \n        <d:HasWithholdingTaxSales m:type=\"Edm.Boolean\">false</d:HasWithholdingTaxSales>\r\
+        \n        <d:IgnoreDatevWarningMessage m:type=\"Edm.Boolean\">false</d:IgnoreDatevWarningMessage>\r\
+        \n        <d:IncotermAddressPurchase m:null=\"true\" />\r\n        <d:IncotermCodePurchase\
+        \ m:null=\"true\" />\r\n        <d:IncotermVersionPurchase m:type=\"Edm.Int16\"\
+        \ m:null=\"true\" />\r\n        <d:IncotermAddressSales m:null=\"true\" />\r\
+        \n        <d:IncotermCodeSales m:null=\"true\" />\r\n        <d:IncotermVersionSales\
+        \ m:type=\"Edm.Int16\" m:null=\"true\" />\r\n        <d:IntraStatArea m:null=\"\
+        true\" />\r\n        <d:IntraStatDeliveryTerm m:null=\"true\" />\r\n     \
+        \   <d:IntraStatSystem m:null=\"true\" />\r\n        <d:IntraStatTransactionA\
+        \ m:null=\"true\" />\r\n        <d:IntraStatTransactionB m:null=\"true\" />\r\
+        \n        <d:IntraStatTransportMethod m:null=\"true\" />\r\n        <d:InvoiceAccount\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:InvoiceAccountCode\
+        \ m:null=\"true\" />\r\n        <d:InvoiceAccountName m:null=\"true\" />\r\
+        \n        <d:InvoiceAttachmentType m:type=\"Edm.Int32\">1</d:InvoiceAttachmentType>\r\
+        \n        <d:InvoicingMethod m:type=\"Edm.Int32\">0</d:InvoicingMethod>\r\n\
+        \        <d:AutomaticProcessProposedEntry m:type=\"Edm.Byte\">0</d:AutomaticProcessProposedEntry>\r\
+        \n        <d:IsAccountant m:type=\"Edm.Byte\">0</d:IsAccountant>\r\n     \
+        \   <d:IsAgency m:type=\"Edm.Byte\">0</d:IsAgency>\r\n        <d:IsAnonymised\
+        \ m:type=\"Edm.Byte\">0</d:IsAnonymised>\r\n        <d:IsBank m:type=\"Edm.Boolean\"\
+        >false</d:IsBank>\r\n        <d:IsCompetitor m:type=\"Edm.Byte\">0</d:IsCompetitor>\r\
+        \n        <d:IsExtraDuty m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n   \
+        \     <d:IsMailing m:type=\"Edm.Byte\">0</d:IsMailing>\r\n        <d:IsMember\
+        \ m:type=\"Edm.Boolean\">false</d:IsMember>\r\n        <d:IsPilot m:type=\"\
+        Edm.Boolean\">false</d:IsPilot>\r\n        <d:IsPurchase m:type=\"Edm.Boolean\"\
+        >true</d:IsPurchase>\r\n        <d:IsReseller m:type=\"Edm.Boolean\">false</d:IsReseller>\r\
+        \n        <d:IsSales m:type=\"Edm.Boolean\">true</d:IsSales>\r\n        <d:IsSupplier\
+        \ m:type=\"Edm.Boolean\">false</d:IsSupplier>\r\n        <d:Language m:null=\"\
+        true\" />\r\n        <d:LanguageDescription m:null=\"true\" />\r\n       \
+        \ <d:Latitude m:type=\"Edm.Double\" m:null=\"true\" />\r\n        <d:LeadSource\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:LeadPurpose m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n        <d:LogoFileName m:null=\"true\" />\r\
+        \n        <d:LogoThumbnailUrl>https://start.exactonline.nl//docs/images/placeholder_account_myeol.png</d:LogoThumbnailUrl>\r\
+        \n        <d:LogoUrl>https://start.exactonline.nl//docs/images/placeholder_account_myeol.png</d:LogoUrl>\r\
+        \n        <d:Logo m:type=\"Edm.Binary\" m:null=\"true\" />\r\n        <d:Longitude\
+        \ m:type=\"Edm.Double\" m:null=\"true\" />\r\n        <d:MainContact m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n        <d:Modified m:type=\"Edm.DateTime\"\
+        >2026-07-27T19:38:50.973</d:Modified>\r\n        <d:Modifier m:type=\"Edm.Guid\"\
+        >c9835751-d59e-40fb-8ec3-484741f58425</d:Modifier>\r\n        <d:ModifierFullName>-Fallback-scrubbed-FullName\
+        </d:ModifierFullName>\r\n        <d:Name>-Fallback-scrubbed-hyBbXPCVPmXVGOuN</d:Name>\r\
+        \n        <d:OINNumber></d:OINNumber>\r\n        <d:Parent m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n        <d:PaymentConditionPurchase m:null=\"true\"\
+        \ />\r\n        <d:PaymentConditionPurchaseDescription m:null=\"true\" />\r\
+        \n        <d:PaymentConditionSales m:null=\"true\" />\r\n        <d:PaymentConditionSalesDescription\
+        \ m:null=\"true\" />\r\n        <d:PayAsYouEarn m:null=\"true\" />\r\n   \
+        \     <d:Phone m:null=\"true\" />\r\n        <d:PhoneExtension m:null=\"true\"\
+        \ />\r\n        <d:Postcode m:null=\"true\" />\r\n        <d:PriceList m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n        <d:PurchaseCurrency>EUR</d:PurchaseCurrency>\r\
+        \n        <d:PurchaseCurrencyDescription>Euro</d:PurchaseCurrencyDescription>\r\
+        \n        <d:PurchaseLeadDays m:type=\"Edm.Int32\">0</d:PurchaseLeadDays>\r\
+        \n        <d:PurchaseVATCode m:null=\"true\" />\r\n        <d:PurchaseVATCodeDescription\
+        \ m:null=\"true\" />\r\n        <d:Remarks m:null=\"true\" />\r\n        <d:RecepientOfCommissions\
+        \ m:type=\"Edm.Boolean\">false</d:RecepientOfCommissions>\r\n        <d:Reseller\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:ResellerCode m:null=\"\
+        true\" />\r\n        <d:ResellerName m:null=\"true\" />\r\n        <d:RSIN\
+        \ m:null=\"true\" />\r\n        <d:SalesCurrency>EUR</d:SalesCurrency>\r\n\
+        \        <d:SalesCurrencyDescription>Euro</d:SalesCurrencyDescription>\r\n\
+        \        <d:SalesVATCode m:null=\"true\" />\r\n        <d:SalesVATCodeDescription\
+        \ m:null=\"true\" />\r\n        <d:SearchCode m:null=\"true\" />\r\n     \
+        \   <d:SecurityLevel m:type=\"Edm.Int32\">10</d:SecurityLevel>\r\n       \
+        \ <d:SeparateInvPerProject m:type=\"Edm.Byte\">0</d:SeparateInvPerProject>\r\
+        \n        <d:SeparateInvPerSubscription m:type=\"Edm.Byte\">0</d:SeparateInvPerSubscription>\r\
+        \n        <d:ShippingLeadDays m:type=\"Edm.Int32\">0</d:ShippingLeadDays>\r\
+        \n        <d:ShippingMethod m:type=\"Edm.Guid\" m:null=\"true\" />\r\n   \
+        \     <d:ShowRemarkForSales m:type=\"Edm.Boolean\">false</d:ShowRemarkForSales>\r\
+        \n        <d:StartDate m:type=\"Edm.DateTime\">2026-07-27T00:00:00</d:StartDate>\r\
+        \n        <d:State m:null=\"true\" />\r\n        <d:StateName m:null=\"true\"\
+        \ />\r\n        <d:Status>C</d:Status>\r\n        <d:StatusSince m:type=\"\
+        Edm.DateTime\">2026-07-27T00:00:00</d:StatusSince>\r\n        <d:SalesTaxSchedule\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n        <d:SalesTaxScheduleCode\
+        \ m:null=\"true\" />\r\n        <d:SalesTaxScheduleDescription m:null=\"true\"\
+        \ />\r\n        <d:TradeName m:null=\"true\" />\r\n        <d:Type>A</d:Type>\r\
+        \n        <d:UniqueTaxpayerReference m:null=\"true\" />\r\n        <d:VATLiability\
+        \ m:null=\"true\" />\r\n        <d:VATNumber m:null=\"true\" />\r\n      \
+        \  <d:Website m:null=\"true\" />\r\n        <d:EORINumber m:null=\"true\"\
+        \ />\r\n        <d:AddressSource m:type=\"Edm.Byte\" m:null=\"true\" />\r\n\
+        \        <d:Source m:type=\"Edm.Byte\">2</d:Source>\r\n        <d:PeppolIdentifierType\
+        \ m:type=\"Edm.Int32\" m:null=\"true\" />\r\n        <d:PeppolIdentifier m:null=\"\
+        true\" />\r\n      </m:properties>\r\n    </content>\r\n  </entry>\r\n</feed>"
+    headers:
+      Cache-Control:
+      - no-cache, no-store
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '10866'
+      Content-Security-Policy:
+      - frame-ancestors 'self'; object-src 'self'; report-uri https://exactonline.report-uri.com/r/t/csp/enforce
+      Content-Type:
+      - application/atom+xml;charset=utf-8
+      DataServiceVersion:
+      - 2.0;
+      Date:
+      - Mon, 09 Nov 2026 22:47:13 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 80513d88-fde3-4a3d-8279-883c285006c6
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Minutely-Limit:
+      - '60'
+      X-RateLimit-Minutely-Remaining:
+      - '58'
+      X-RateLimit-Minutely-Reset:
+      - '1794264480000'
+      X-RateLimit-Remaining:
+      - '4941'
+      X-RateLimit-Reset:
+      - '1794268800000'
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: grant_type=refresh_token
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/oauth2/token
+  response:
+    body:
+      string: '{"error": "access_denied", "error_description": "Rate limit exceeded:
+        access_token not expired"}'
+    headers:
+      Cache-Control:
+      - no-cache
+      - no-store
+      Connection:
+      - close
+      Content-Length:
+      - '96'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 09 Nov 2026 22:47:13 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Reason:
+      - 'TooEarlyToRefreshTokens: Rate limit exceeded: access_token not expired'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Retry-After:
+      - '230'
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 1268cefb-b6b7-42c5-a4d1-c72f80b84e7e
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.25.1
+    method: GET
+    uri: https://start.exactonline.nl/api/v1//3527190/logistics/Items?%24filter=Code%20eq%20%27-Fallback-scrubbed-UWntHPGhDTBbVVZZq%27
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<feed\
+        \ xml:base=\"https://start.exactonline.nl/api/v1/3527190/logistics/\" xmlns:d=\"\
+        http://schemas.microsoft.com/ado/2007/08/dataservices\" xmlns:m=\"http://schemas.microsoft.com/ado/2007/08/dataservices/metadata\"\
+        \ xmlns=\"http://www.w3.org/2005/Atom\">\r\n  <title type=\"text\">Items</title>\r\
+        \n  <id>https://start.exactonline.nl/api/v1/3527190/logistics/Items</id>\r\
+        \n  <updated>2026-11-09T22:47:14Z</updated>\r\n  <author>\r\n    <name />\r\
+        \n  </author>\r\n  <link rel=\"self\" title=\"Items\" href=\"Items\" />\r\n\
+        </feed>"
+    headers:
+      Cache-Control:
+      - no-cache, no-store
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '551'
+      Content-Security-Policy:
+      - frame-ancestors 'self'; object-src 'self'; report-uri https://exactonline.report-uri.com/r/t/csp/enforce
+      Content-Type:
+      - application/atom+xml;charset=utf-8
+      DataServiceVersion:
+      - 2.0;
+      Date:
+      - Mon, 09 Nov 2026 22:47:14 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - e0a7dfd9-f320-4344-84b5-a8897d8c2f51
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Minutely-Limit:
+      - '60'
+      X-RateLimit-Minutely-Remaining:
+      - '57'
+      X-RateLimit-Minutely-Reset:
+      - '1794264480000'
+      X-RateLimit-Remaining:
+      - '4940'
+      X-RateLimit-Reset:
+      - '1794268800000'
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: grant_type=refresh_token
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/oauth2/token
+  response:
+    body:
+      string: '{"error": "access_denied", "error_description": "Rate limit exceeded:
+        access_token not expired"}'
+    headers:
+      Cache-Control:
+      - no-cache
+      - no-store
+      Connection:
+      - close
+      Content-Length:
+      - '96'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 09 Nov 2026 22:47:15 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Reason:
+      - 'TooEarlyToRefreshTokens: Rate limit exceeded: access_token not expired'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Retry-After:
+      - '229'
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - f2c46466-0aaa-4468-acb1-48d71a9eea78
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.25.1
+    method: GET
+    uri: https://start.exactonline.nl/api/v1//3527190/logistics/Items?%24filter=Code%20eq%20%27-Fallback-scrubbed-iOTSDHdhxVneGeIMVsVuszP%27
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<feed\
+        \ xml:base=\"https://start.exactonline.nl/api/v1/3527190/logistics/\" xmlns:d=\"\
+        http://schemas.microsoft.com/ado/2007/08/dataservices\" xmlns:m=\"http://schemas.microsoft.com/ado/2007/08/dataservices/metadata\"\
+        \ xmlns=\"http://www.w3.org/2005/Atom\">\r\n  <title type=\"text\">Items</title>\r\
+        \n  <id>https://start.exactonline.nl/api/v1/3527190/logistics/Items</id>\r\
+        \n  <updated>2026-11-09T22:47:16Z</updated>\r\n  <author>\r\n    <name />\r\
+        \n  </author>\r\n  <link rel=\"self\" title=\"Items\" href=\"Items\" />\r\n\
+        </feed>"
+    headers:
+      Cache-Control:
+      - no-cache, no-store
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '551'
+      Content-Security-Policy:
+      - frame-ancestors 'self'; object-src 'self'; report-uri https://exactonline.report-uri.com/r/t/csp/enforce
+      Content-Type:
+      - application/atom+xml;charset=utf-8
+      DataServiceVersion:
+      - 2.0;
+      Date:
+      - Mon, 09 Nov 2026 22:47:16 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 9cf529c1-d617-42ae-8292-614bbc599799
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Minutely-Limit:
+      - '60'
+      X-RateLimit-Minutely-Remaining:
+      - '56'
+      X-RateLimit-Minutely-Reset:
+      - '1794264480000'
+      X-RateLimit-Remaining:
+      - '4939'
+      X-RateLimit-Reset:
+      - '1794268800000'
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: grant_type=refresh_token
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/oauth2/token
+  response:
+    body:
+      string: '{"error": "access_denied", "error_description": "Rate limit exceeded:
+        access_token not expired"}'
+    headers:
+      Cache-Control:
+      - no-cache
+      - no-store
+      Connection:
+      - close
+      Content-Length:
+      - '96'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 09 Nov 2026 22:47:18 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Reason:
+      - 'TooEarlyToRefreshTokens: Rate limit exceeded: access_token not expired'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Retry-After:
+      - '226'
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 508f548d-bbae-4ef0-a55f-9a91a7700e88
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.25.1
+    method: GET
+    uri: https://start.exactonline.nl/api/v1//3527190/logistics/Items?%24filter=Description%20eq%20%27-Fallback-scrubbed-iOTSDHdhxVneGeIMVsVuszP%27
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<feed\
+        \ xml:base=\"https://start.exactonline.nl/api/v1/3527190/logistics/\" xmlns:d=\"\
+        http://schemas.microsoft.com/ado/2007/08/dataservices\" xmlns:m=\"http://schemas.microsoft.com/ado/2007/08/dataservices/metadata\"\
+        \ xmlns=\"http://www.w3.org/2005/Atom\">\r\n  <title type=\"text\">Items</title>\r\
+        \n  <id>https://start.exactonline.nl/api/v1/3527190/logistics/Items</id>\r\
+        \n  <updated>2026-11-09T22:47:19Z</updated>\r\n  <author>\r\n    <name />\r\
+        \n  </author>\r\n  <link rel=\"self\" title=\"Items\" href=\"Items\" />\r\n\
+        </feed>"
+    headers:
+      Cache-Control:
+      - no-cache, no-store
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '551'
+      Content-Security-Policy:
+      - frame-ancestors 'self'; object-src 'self'; report-uri https://exactonline.report-uri.com/r/t/csp/enforce
+      Content-Type:
+      - application/atom+xml;charset=utf-8
+      DataServiceVersion:
+      - 2.0;
+      Date:
+      - Mon, 09 Nov 2026 22:47:19 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - da16d491-cd9f-44d1-92f4-84559f4bc316
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Minutely-Limit:
+      - '60'
+      X-RateLimit-Minutely-Remaining:
+      - '55'
+      X-RateLimit-Minutely-Reset:
+      - '1794264480000'
+      X-RateLimit-Remaining:
+      - '4938'
+      X-RateLimit-Reset:
+      - '1794268800000'
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1
