@@ -1,0 +1,258 @@
+interactions:
+- request:
+    body: grant_type=refresh_token
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '24'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/oauth2/token
+  response:
+    body:
+      string: '{"error": "access_denied", "error_description": "Rate limit exceeded:
+        access_token not expired"}'
+    headers:
+      Cache-Control:
+      - no-cache
+      - no-store
+      Connection:
+      - close
+      Content-Length:
+      - '96'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 09 Nov 2026 22:47:21 GMT
+      Expires:
+      - '-1'
+      Pragma:
+      - no-cache
+      Reason:
+      - 'TooEarlyToRefreshTokens: Rate limit exceeded: access_token not expired'
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Retry-After:
+      - '222'
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 2f93c89c-79c0-45f5-89ea-a411dc1e3d47
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 400
+      message: Bad Request
+- request:
+    body: '{"Name": "Fake-Brittany Juarez", "CodeAtSupplier": "-Fallback-scrubbed-QCFUsfcMKJRc"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '85'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.25.1
+    method: POST
+    uri: https://start.exactonline.nl/api/v1//3527190/crm/Accounts
+  response:
+    body:
+      string: "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\r\n<entry\
+        \ xml:base=\"https://start.exactonline.nl/api/v1/3527190/crm/\" xmlns:d=\"\
+        http://schemas.microsoft.com/ado/2007/08/dataservices\" xmlns:m=\"http://schemas.microsoft.com/ado/2007/08/dataservices/metadata\"\
+        \ xmlns=\"http://www.w3.org/2005/Atom\">\r\n  <id>https://start.exactonline.nl/api/v1/3527190/crm/Accounts(guid'ffcb697e-0456-4f16-ab78-acfd5abcbd0e')</id>\r\
+        \n  <title type=\"text\"></title>\r\n  <updated>2026-11-09T22:47:22Z</updated>\r\
+        \n  <author>\r\n    <name />\r\n  </author>\r\n  <link rel=\"edit\" title=\"\
+        Account\" href=\"Accounts(guid'ffcb697e-0456-4f16-ab78-acfd5abcbd0e')\" />\r\
+        \n  <link rel=\"http://schemas.microsoft.com/ado/2007/08/dataservices/related/BankAccounts\"\
+        \ type=\"application/atom+xml;type=feed\" title=\"BankAccounts\" href=\"Accounts(guid'ffcb697e-0456-4f16-ab78-acfd5abcbd0e')/BankAccounts\"\
+        \ />\r\n  <category term=\"Exact.Web.Api.Models.Account\" scheme=\"http://schemas.microsoft.com/ado/2007/08/dataservices/scheme\"\
+        \ />\r\n  <content type=\"application/xml\">\r\n    <m:properties>\r\n   \
+        \   <d:ID m:type=\"Edm.Guid\">ffcb697e-0456-4f16-ab78-acfd5abcbd0e</d:ID>\r\
+        \n      <d:Accountant m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:AccountManager\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:AccountManagerFullName\
+        \ m:null=\"true\" />\r\n      <d:AccountManagerHID m:type=\"Edm.Int32\" m:null=\"\
+        true\" />\r\n      <d:ActivitySector m:type=\"Edm.Guid\" m:null=\"true\" />\r\
+        \n      <d:ActivitySubSector m:type=\"Edm.Guid\" m:null=\"true\" />\r\n  \
+        \    <d:AddressLine1 m:null=\"true\" />\r\n      <d:AddressLine2 m:null=\"\
+        true\" />\r\n      <d:AddressLine3 m:null=\"true\" />\r\n      <d:Blocked\
+        \ m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n      <d:BRIN m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n      <d:BSN m:null=\"true\" />\r\n      <d:BusinessType\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:CanDropShip m:type=\"\
+        Edm.Boolean\" m:null=\"true\" />\r\n      <d:ChamberOfCommerce m:null=\"true\"\
+        \ />\r\n      <d:City m:null=\"true\" />\r\n      <d:Classification m:null=\"\
+        true\" />\r\n      <d:Classification1 m:type=\"Edm.Guid\" m:null=\"true\"\
+        \ />\r\n      <d:Classification2 m:type=\"Edm.Guid\" m:null=\"true\" />\r\n\
+        \      <d:Classification3 m:type=\"Edm.Guid\" m:null=\"true\" />\r\n     \
+        \ <d:Classification4 m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:Classification5\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:Classification6 m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n      <d:Classification7 m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n      <d:Classification8 m:type=\"Edm.Guid\" m:null=\"\
+        true\" />\r\n      <d:ClassificationDescription m:null=\"true\" />\r\n   \
+        \   <d:ClientGroup m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:ClientGroupDescription\
+        \ m:null=\"true\" />\r\n      <d:Code m:null=\"true\" />\r\n      <d:CodeAtSupplier\
+        \ m:null=\"true\" />\r\n      <d:CompanySize m:type=\"Edm.Guid\" m:null=\"\
+        true\" />\r\n      <d:ConsolidationScenario m:type=\"Edm.Byte\" m:null=\"\
+        true\" />\r\n      <d:ControlledDate m:type=\"Edm.DateTime\" m:null=\"true\"\
+        \ />\r\n      <d:Costcenter m:null=\"true\" />\r\n      <d:CostcenterDescription\
+        \ m:null=\"true\" />\r\n      <d:CostPaid m:type=\"Edm.Byte\">0</d:CostPaid>\r\
+        \n      <d:Country m:null=\"true\" />\r\n      <d:CountryName m:null=\"true\"\
+        \ />\r\n      <d:Created m:type=\"Edm.DateTime\" m:null=\"true\" />\r\n  \
+        \    <d:Creator m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:CreatorFullName\
+        \ m:null=\"true\" />\r\n      <d:CreditLinePurchase m:type=\"Edm.Double\"\
+        \ m:null=\"true\" />\r\n      <d:CreditLineSales m:type=\"Edm.Double\" m:null=\"\
+        true\" />\r\n      <d:Currency m:null=\"true\" />\r\n      <d:CustomField\
+        \ m:null=\"true\" />\r\n      <d:CustomerSince m:type=\"Edm.DateTime\" m:null=\"\
+        true\" />\r\n      <d:DatevCreditorCode m:null=\"true\" />\r\n      <d:DatevDebtorCode\
+        \ m:null=\"true\" />\r\n      <d:DeliveryAdvice m:type=\"Edm.Byte\" m:null=\"\
+        true\" />\r\n      <d:DiscountPurchase m:type=\"Edm.Double\" m:null=\"true\"\
+        \ />\r\n      <d:DiscountSales m:type=\"Edm.Double\" m:null=\"true\" />\r\n\
+        \      <d:Division m:type=\"Edm.Int32\" m:null=\"true\" />\r\n      <d:Document\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:DunsNumber m:null=\"\
+        true\" />\r\n      <d:Email m:null=\"true\" />\r\n      <d:EnableSalesPaymentLink\
+        \ m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n      <d:EndDate m:type=\"\
+        Edm.DateTime\" m:null=\"true\" />\r\n      <d:EstablishedDate m:type=\"Edm.DateTime\"\
+        \ m:null=\"true\" />\r\n      <d:Fax m:null=\"true\" />\r\n      <d:GLAccountPurchase\
+        \ m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:GLAccountSales m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n      <d:GLAP m:type=\"Edm.Guid\" m:null=\"\
+        true\" />\r\n      <d:GLAR m:type=\"Edm.Guid\" m:null=\"true\" />\r\n    \
+        \  <d:GlnNumber m:null=\"true\" />\r\n      <d:HasWithholdingTaxSales m:type=\"\
+        Edm.Boolean\" m:null=\"true\" />\r\n      <d:IgnoreDatevWarningMessage m:type=\"\
+        Edm.Boolean\">false</d:IgnoreDatevWarningMessage>\r\n      <d:IncotermAddressPurchase\
+        \ m:null=\"true\" />\r\n      <d:IncotermCodePurchase m:null=\"true\" />\r\
+        \n      <d:IncotermVersionPurchase m:type=\"Edm.Int16\" m:null=\"true\" />\r\
+        \n      <d:IncotermAddressSales m:null=\"true\" />\r\n      <d:IncotermCodeSales\
+        \ m:null=\"true\" />\r\n      <d:IncotermVersionSales m:type=\"Edm.Int16\"\
+        \ m:null=\"true\" />\r\n      <d:IntraStatArea m:null=\"true\" />\r\n    \
+        \  <d:IntraStatDeliveryTerm m:null=\"true\" />\r\n      <d:IntraStatSystem\
+        \ m:null=\"true\" />\r\n      <d:IntraStatTransactionA m:null=\"true\" />\r\
+        \n      <d:IntraStatTransactionB m:null=\"true\" />\r\n      <d:IntraStatTransportMethod\
+        \ m:null=\"true\" />\r\n      <d:InvoiceAccount m:type=\"Edm.Guid\" m:null=\"\
+        true\" />\r\n      <d:InvoiceAccountCode m:null=\"true\" />\r\n      <d:InvoiceAccountName\
+        \ m:null=\"true\" />\r\n      <d:InvoiceAttachmentType m:type=\"Edm.Int32\"\
+        \ m:null=\"true\" />\r\n      <d:InvoicingMethod m:type=\"Edm.Int32\" m:null=\"\
+        true\" />\r\n      <d:AutomaticProcessProposedEntry m:type=\"Edm.Byte\" m:null=\"\
+        true\" />\r\n      <d:IsAccountant m:type=\"Edm.Byte\">0</d:IsAccountant>\r\
+        \n      <d:IsAgency m:type=\"Edm.Byte\">0</d:IsAgency>\r\n      <d:IsAnonymised\
+        \ m:type=\"Edm.Byte\">0</d:IsAnonymised>\r\n      <d:IsBank m:type=\"Edm.Boolean\"\
+        \ m:null=\"true\" />\r\n      <d:IsCompetitor m:type=\"Edm.Byte\">0</d:IsCompetitor>\r\
+        \n      <d:IsExtraDuty m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n     \
+        \ <d:IsMailing m:type=\"Edm.Byte\">0</d:IsMailing>\r\n      <d:IsMember m:type=\"\
+        Edm.Boolean\" m:null=\"true\" />\r\n      <d:IsPilot m:type=\"Edm.Boolean\"\
+        \ m:null=\"true\" />\r\n      <d:IsPurchase m:type=\"Edm.Boolean\" m:null=\"\
+        true\" />\r\n      <d:IsReseller m:type=\"Edm.Boolean\" m:null=\"true\" />\r\
+        \n      <d:IsSales m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n      <d:IsSupplier\
+        \ m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n      <d:Language m:null=\"\
+        true\" />\r\n      <d:LanguageDescription m:null=\"true\" />\r\n      <d:Latitude\
+        \ m:type=\"Edm.Double\" m:null=\"true\" />\r\n      <d:LeadSource m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n      <d:LeadPurpose m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n      <d:LogoFileName m:null=\"true\" />\r\n     \
+        \ <d:LogoThumbnailUrl m:null=\"true\" />\r\n      <d:LogoUrl m:null=\"true\"\
+        \ />\r\n      <d:Logo m:type=\"Edm.Binary\" m:null=\"true\" />\r\n      <d:Longitude\
+        \ m:type=\"Edm.Double\" m:null=\"true\" />\r\n      <d:MainContact m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n      <d:Modified m:type=\"Edm.DateTime\"\
+        \ m:null=\"true\" />\r\n      <d:Modifier m:type=\"Edm.Guid\" m:null=\"true\"\
+        \ />\r\n      <d:ModifierFullName m:null=\"true\" />\r\n      <d:Name m:null=\"\
+        true\" />\r\n      <d:OINNumber m:null=\"true\" />\r\n      <d:Parent m:type=\"\
+        Edm.Guid\" m:null=\"true\" />\r\n      <d:PaymentConditionPurchase m:null=\"\
+        true\" />\r\n      <d:PaymentConditionPurchaseDescription m:null=\"true\"\
+        \ />\r\n      <d:PaymentConditionSales m:null=\"true\" />\r\n      <d:PaymentConditionSalesDescription\
+        \ m:null=\"true\" />\r\n      <d:PayAsYouEarn m:null=\"true\" />\r\n     \
+        \ <d:Phone m:null=\"true\" />\r\n      <d:PhoneExtension m:null=\"true\" />\r\
+        \n      <d:Postcode m:null=\"true\" />\r\n      <d:PriceList m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n      <d:PurchaseCurrency m:null=\"true\" />\r\n \
+        \     <d:PurchaseCurrencyDescription m:null=\"true\" />\r\n      <d:PurchaseLeadDays\
+        \ m:type=\"Edm.Int32\" m:null=\"true\" />\r\n      <d:PurchaseVATCode m:null=\"\
+        true\" />\r\n      <d:PurchaseVATCodeDescription m:null=\"true\" />\r\n  \
+        \    <d:Remarks m:null=\"true\" />\r\n      <d:RecepientOfCommissions m:type=\"\
+        Edm.Boolean\" m:null=\"true\" />\r\n      <d:Reseller m:type=\"Edm.Guid\"\
+        \ m:null=\"true\" />\r\n      <d:ResellerCode m:null=\"true\" />\r\n     \
+        \ <d:ResellerName m:null=\"true\" />\r\n      <d:RSIN m:null=\"true\" />\r\
+        \n      <d:SalesCurrency m:null=\"true\" />\r\n      <d:SalesCurrencyDescription\
+        \ m:null=\"true\" />\r\n      <d:SalesVATCode m:null=\"true\" />\r\n     \
+        \ <d:SalesVATCodeDescription m:null=\"true\" />\r\n      <d:SearchCode m:null=\"\
+        true\" />\r\n      <d:SecurityLevel m:type=\"Edm.Int32\" m:null=\"true\" />\r\
+        \n      <d:SeparateInvPerProject m:type=\"Edm.Byte\">0</d:SeparateInvPerProject>\r\
+        \n      <d:SeparateInvPerSubscription m:type=\"Edm.Byte\">0</d:SeparateInvPerSubscription>\r\
+        \n      <d:ShippingLeadDays m:type=\"Edm.Int32\" m:null=\"true\" />\r\n  \
+        \    <d:ShippingMethod m:type=\"Edm.Guid\" m:null=\"true\" />\r\n      <d:ShowRemarkForSales\
+        \ m:type=\"Edm.Boolean\" m:null=\"true\" />\r\n      <d:StartDate m:type=\"\
+        Edm.DateTime\" m:null=\"true\" />\r\n      <d:State m:null=\"true\" />\r\n\
+        \      <d:StateName m:null=\"true\" />\r\n      <d:Status m:null=\"true\"\
+        \ />\r\n      <d:StatusSince m:type=\"Edm.DateTime\" m:null=\"true\" />\r\n\
+        \      <d:SalesTaxSchedule m:type=\"Edm.Guid\" m:null=\"true\" />\r\n    \
+        \  <d:SalesTaxScheduleCode m:null=\"true\" />\r\n      <d:SalesTaxScheduleDescription\
+        \ m:null=\"true\" />\r\n      <d:TradeName m:null=\"true\" />\r\n      <d:Type\
+        \ m:null=\"true\" />\r\n      <d:UniqueTaxpayerReference m:null=\"true\" />\r\
+        \n      <d:VATLiability m:null=\"true\" />\r\n      <d:VATNumber m:null=\"\
+        true\" />\r\n      <d:Website m:null=\"true\" />\r\n      <d:EORINumber m:null=\"\
+        true\" />\r\n      <d:AddressSource m:type=\"Edm.Byte\" m:null=\"true\" />\r\
+        \n      <d:Source m:type=\"Edm.Byte\" m:null=\"true\" />\r\n      <d:PeppolIdentifierType\
+        \ m:type=\"Edm.Int32\" m:null=\"true\" />\r\n      <d:PeppolIdentifier m:null=\"\
+        true\" />\r\n    </m:properties>\r\n  </content>\r\n</entry>"
+    headers:
+      Cache-Control:
+      - no-cache, no-store
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '9646'
+      Content-Security-Policy:
+      - frame-ancestors 'self'; object-src 'self'; report-uri https://exactonline.report-uri.com/r/t/csp/enforce
+      Content-Type:
+      - application/atom+xml;charset=utf-8
+      DataServiceVersion:
+      - 1.0;
+      Date:
+      - Mon, 09 Nov 2026 22:47:22 GMT
+      Expires:
+      - '-1'
+      Location:
+      - https://start.exactonline.nl/api/v1/3527190/crm/Accounts(guid'ffcb697e-0456-4f16-ab78-acfd5abcbd0e')
+      Pragma:
+      - no-cache
+      Referrer-Policy:
+      - strict-origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      X-Content-Type-Options:
+      - nosniff
+      X-Exact-Correlation-Id:
+      - 1d82deeb-38b2-4203-97af-c5418756f026
+      X-RateLimit-Limit:
+      - '5000'
+      X-RateLimit-Minutely-Limit:
+      - '60'
+      X-RateLimit-Minutely-Remaining:
+      - '54'
+      X-RateLimit-Minutely-Reset:
+      - '1794264480000'
+      X-RateLimit-Remaining:
+      - '4937'
+      X-RateLimit-Reset:
+      - '1794268800000'
+      X-RequestHandledBy-EOLDotNetApp:
+      - '0'
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 201
+      message: Created
+version: 1
