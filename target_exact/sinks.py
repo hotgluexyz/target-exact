@@ -396,82 +396,77 @@ class SalesOrdersSink(ExactSink):
     endpoint = "/salesorder/SalesOrders"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        if record.get("division") and not self.current_division:
+            self.endpoint = f"{record.get('division')}/{self.endpoint}"
+        
+        order_number = record.get('order_number')
+        order_id = record.get("id")
+
         try:
-            if record.get("division") and not self.current_division:
-                self.endpoint = f"{record.get('division')}/{self.endpoint}"
+            int(order_number)
+        except (ValueError, TypeError):
+            raise InvalidOrderNumberError(f"OrderNumber should be int. OrderID {order_id} and OrderNumber {order_number}")
+        
+        accounts_endpoint = '/crm/Accounts'
+        if not (ordered_by := self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('customer_name')}'"})):
+            raise InvalidOrderedByError(f"Customer Name {record.get('customer_name')} not found. " + \
+                                        f"OrderID {order_id}, OrderNumber {order_number}")
+
+        order_lines = []
+        for item in record.get("line_items", [{}]):
             
-            order_number = record.get('order_number')
-            order_id = record.get("id")
+            item_id = None
+            item_endpoint = "/logistics/Items"
 
-            try:
-                int(order_number)
-            except (ValueError, TypeError):
-                raise InvalidOrderNumberError(f"OrderNumber should be int. OrderID {order_id} and OrderNumber {order_number}")
+            product_id_filters = [
+                {"$filter": f"Code eq '{item.get('sku')}'"},
+                {"$filter": f"Code eq '{item.get('product_name')}'"},
+                {"$filter": f"Description eq '{item.get('product_name')}'"},
+            ]
+
+            product_id = item.get("product_id")
+            if product_id:
+                product_id_filters.insert(0, {"$filter": f"ID eq guid'{product_id}'"})
+
+            item_id = None
+            for filter in product_id_filters:
+                if item_id := self.get_id(item_endpoint, filter):
+                    break
             
-            accounts_endpoint = '/crm/Accounts'
-            if not (ordered_by := self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('customer_name')}'"})):
-                raise InvalidOrderedByError(f"Customer Name {record.get('customer_name')} not found. " + \
-                                            f"OrderID {order_id}, OrderNumber {order_number}")
-
-            order_lines = []
-            for item in record.get("line_items", [{}]):
+            if not item_id:
+                raise MissingItemError(f"Item not found for SKU {item.get('sku')} and Name {item.get('product_name')}. " + \
+                                f"OrderID {order_id} and OrderNumber {record.get('order_number')}.")
                 
-                item_id = None
-                item_endpoint = "/logistics/Items"
-
-                product_id_filters = [
-                    {"$filter": f"Code eq '{item.get('sku')}'"},
-                    {"$filter": f"Code eq '{item.get('product_name')}'"},
-                    {"$filter": f"Description eq '{item.get('product_name')}'"},
-                ]
-
-                product_id = item.get("product_id")
-                if product_id:
-                    product_id_filters.insert(0, {"$filter": f"ID eq guid'{product_id}'"})
-
-                item_id = None
-                for filter in product_id_filters:
-                    if item_id := self.get_id(item_endpoint, filter):
-                        break
-                
-                if not item_id:
-                    raise MissingItemError(f"Item not found for SKU {item.get('sku')} and Name {item.get('product_name')}. " + \
-                                    f"OrderID {order_id} and OrderNumber {record.get('order_number')}.")
-                    
-                order_line = {
-                    "OrderID": order_id,
-                    "Item": item_id,
-                    "Quantity": item.get("quantity"),
-                    "NetPrice": item.get("unit_price"),
-                    "VATCode": item.get("tax_code"),
-                    "Description": item.get("product_name"),
-                    "Notes": item.get("sku"),
-                }
-                if item.get("discount_amount"):
-                    order_line["Discount"] = item.get("discount_amount")/item.get("unit_price")
-                order_lines.append(order_line)
-
-            payload = {
-                "YourRef": order_id,
-                "SalesOrderLines": order_lines,
-                "ApprovalStatus": SALES_ORDER_STATUS.get(record.get("status"), 0),
-                "OrderDate": record.get("transaction_date", None) or record.get("created_at"),
-                "OrderNumber": record.get("order_number"),
-                "AmountDiscount": record.get("total_discount"),
-                "Description": record.get("order_notes"),
-                "DeliverTo": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('shipping_name')}'"}),
-                "InvoiceTo": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('billing_name')}'"}),
-                "OrderedBy": ordered_by,
+            order_line = {
+                "OrderID": order_id,
+                "Item": item_id,
+                "Quantity": item.get("quantity"),
+                "NetPrice": item.get("unit_price"),
+                "VATCode": item.get("tax_code"),
+                "Description": item.get("product_name"),
+                "Notes": item.get("sku"),
             }
-            return payload
-        except Exception as exc:
-            return {"error": repr(exc)}
+            if item.get("discount_amount"):
+                order_line["Discount"] = item.get("discount_amount")/item.get("unit_price")
+            order_lines.append(order_line)
+
+        payload = {
+            "YourRef": order_id,
+            "SalesOrderLines": order_lines,
+            "ApprovalStatus": SALES_ORDER_STATUS.get(record.get("status"), 0),
+            "OrderDate": record.get("transaction_date", None) or record.get("created_at"),
+            "OrderNumber": record.get("order_number"),
+            "AmountDiscount": record.get("total_discount"),
+            "Description": record.get("order_notes"),
+            "DeliverTo": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('shipping_name')}'"}),
+            "InvoiceTo": self.get_id(accounts_endpoint, {"$filter": f"Name eq '{record.get('billing_name')}'"}),
+            "OrderedBy": ordered_by,
+        }
+        return payload
     
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
         if record:
-            if record.get("error"):
-                raise Exception(record.get("error"))
             response = self.request_api(
                 "POST", endpoint=self.endpoint, request_data=record
             )
