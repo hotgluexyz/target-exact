@@ -1,10 +1,13 @@
-class InvalidOrderNumberError(Exception):
+from hotglue_etl_exceptions import InvalidPayloadError
+
+
+class InvalidOrderNumberError(InvalidPayloadError):
     pass
 
 
-class MissingItemError(Exception):
+class MissingItemError(InvalidPayloadError):
     pass
 
 
-class InvalidOrderedByError(Exception):
+class InvalidOrderedByError(InvalidPayloadError):
     pass

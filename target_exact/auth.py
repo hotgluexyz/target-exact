@@ -1,11 +1,30 @@
 import json
 from datetime import datetime
 from typing import Any, Dict, Optional
+from hotglue_etl_exceptions import InvalidCredentialsError
 from hotglue_singer_sdk.target_sdk.auth import OAuthAuthenticator
 
 import logging
 import requests
 import backoff
+
+INVALID_CREDENTIALS_OAUTH_ERRORS = {"invalid_grant", "invalid_client", "unauthorized_client"}
+MALFORMED_REFRESH_TOKEN_DESCRIPTION = "Handle could not be extracted"
+
+
+def is_invalid_credentials_response(response: requests.Response) -> bool:
+    """Whether a failed token response means the connection's credentials are bad."""
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+    error = body.get("error") if isinstance(body, dict) else None
+    if not error:
+        return response.status_code == 401
+    description = body.get("error_description") or ""
+    return error in INVALID_CREDENTIALS_OAUTH_ERRORS or (
+        error == "invalid_request" and MALFORMED_REFRESH_TOKEN_DESCRIPTION in description
+    )
 
 
 class ExactAuthenticator(OAuthAuthenticator):
@@ -42,10 +61,15 @@ class ExactAuthenticator(OAuthAuthenticator):
             "client_secret": self._config["client_secret"],
         }
 
-    @backoff.on_exception(backoff.expo, Exception, max_tries=3)
+    @backoff.on_exception(
+        backoff.expo,
+        Exception,
+        max_tries=3,
+        giveup=lambda error: isinstance(error, InvalidCredentialsError),
+    )
     def _update_access_token_locally(self) -> None:
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        self.logger.info(f"Oauth request - endpoint: {self._auth_endpoint}, body: {self.oauth_request_body}")
+        self.logger.info(f"Oauth request - endpoint: {self._auth_endpoint}")
         token_response = requests.post(
             self._auth_endpoint, data=self.oauth_request_body, headers=headers
         )
@@ -56,17 +80,29 @@ class ExactAuthenticator(OAuthAuthenticator):
                 == "Rate limit exceeded: access_token not expired"
             ):
                 return None
-        except:
-            raise Exception(f"Failed converting response to a json, OAuth response: {token_response.text}")
+        except (ValueError, AttributeError) as ex:
+            error_class = (
+                InvalidCredentialsError
+                if is_invalid_credentials_response(token_response)
+                else Exception
+            )
+            raise error_class(
+                f"Failed converting response to a json, OAuth response: {token_response.text}"
+            ) from ex
 
         try:
             token_response.raise_for_status()
             self.logger.info("OAuth authorization attempt was successful.")
         except Exception as ex:
             self.state.update({"auth_error_response": token_response.json()})
-            raise RuntimeError(
-                f"Failed OAuth login, response was '{token_response.json()}'. {ex}"
+            error_class = (
+                InvalidCredentialsError
+                if is_invalid_credentials_response(token_response)
+                else RuntimeError
             )
+            raise error_class(
+                f"Failed OAuth login, response was '{token_response.json()}'. {ex}"
+            ) from ex
         token_json = token_response.json()
         #Log the refresh_token
         self.logger.info(f"Latest refresh token: {token_json['refresh_token']}")
